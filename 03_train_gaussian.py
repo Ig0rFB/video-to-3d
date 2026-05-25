@@ -7,6 +7,12 @@ from pathlib import Path
 import torch
 
 from device import get_device, gsplat_cuda_available
+from env_utils import (
+    check_cuda_torch,
+    cuda_torch_install_hint,
+    require_colmap_binary,
+    resolve_cli,
+)
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
 from patch_nerfstudio_mps import patch_splatfacto
 
@@ -37,17 +43,28 @@ def train(
     os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
     patch_splatfacto()
 
+    if device == "cuda":
+        cuda_issues = check_cuda_torch(strict=sys.platform.startswith("linux"))
+        if cuda_issues:
+            raise SystemExit(
+                "\n[splatfacto] CUDA PyTorch is not usable on this host:\n"
+                + "\n".join(f"  - {m}" for m in cuda_issues)
+                + "\n\n"
+                + cuda_torch_install_hint()
+                + "\n"
+            )
+
     if device in ("mps", "cpu") and not gsplat_cuda_available():
         if device == "cpu" and not torch.cuda.is_available():
             raise SystemExit(
                 "\n[splatfacto] PyTorch cannot see a CUDA GPU on this machine.\n\n"
-                "On cloud GPU instances, `uv sync` often installs CPU-only PyTorch. Reinstall CUDA wheels, e.g.:\n"
-                "  uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124\n"
+                "On Linux cloud GPUs, run once:\n"
+                "  ./scripts/setup_cloud.sh\n"
+                "Or:\n"
+                "  uv run --no-sync python scripts/ensure_env.py --fix-cuda --require-cuda\n\n"
                 "Then verify:\n"
                 "  nvidia-smi\n"
-                "  uv run python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"\n\n"
-                "If the driver is too old for that wheel, pick a PyTorch CUDA build that matches `nvidia-smi`, "
-                "or rent an instance with a newer NVIDIA driver.\n"
+                "  uv run --no-sync python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"\n"
             )
         raise SystemExit(
             "\n[splatfacto] gsplat's CUDA rasteriser is not available on this machine "
@@ -61,10 +78,12 @@ def train(
 
     ns_path = Path(ns_data_dir)
     colmap_rel = _link_colmap_into_ns_data(Path(colmap_model_path), ns_path)
+    require_colmap_binary()
+    ns_process_data = resolve_cli("ns-process-data")
 
     subprocess.run(
         [
-            "ns-process-data",
+            ns_process_data,
             "images",
             "--data",
             image_dir,
@@ -121,7 +140,9 @@ def _has_colmap_at(path: str) -> bool:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Train splatfacto (use: uv run --no-sync python 03_train_gaussian.py …)"
+    )
     parser.add_argument("--image_dir", default="frames/")
     parser.add_argument(
         "--colmap_dir",

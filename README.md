@@ -25,18 +25,18 @@ cd video-to-3d
 # Reproduce the environment from the lockfile
 uv sync --prerelease=allow
 
-# Verify device detection (expect MPS: True on Apple Silicon)
-uv run python -c "from device import get_device; get_device()"
+# Patches + preflight (safe on Mac and Linux)
+uv run --no-sync python patch_nerfstudio_mps.py
+uv run --no-sync python scripts/ensure_env.py
 
 # Verify system tools
 colmap help
 ffmpeg -version
-
-# Verify nerfstudio CLI
-uv run ns-train --help
 ```
 
-> **Note:** `nerfstudio` on arm64 requires pre-release resolution. Use `uv sync --prerelease=allow` (or `uv add --prerelease=allow` when adding packages).
+> **Note:** `nerfstudio` on arm64 requires pre-release resolution. Use `uv sync --prerelease=allow` when adding packages.
+>
+> **PyTorch:** Linux CUDA hosts use **torch 2.5.1 + cu124** from `pyproject.toml` (not the latest PyPI CUDA 13 wheel). After `uv sync`, run pipeline commands with **`uv run --no-sync`** so uv does not re-resolve torch. Plain `uv run` without `--no-sync` may still change wheels if you edit dependencies.
 
 ## Usage
 
@@ -44,16 +44,16 @@ uv run ns-train --help
 2. Run the full pipeline:
 
 ```bash
-uv run python pipeline.py
+uv run --no-sync python pipeline.py
 ```
 
 Or run stages manually:
 
 ```bash
-uv run python 01_extract_frames.py --video input/room.mp4 --fps 2
-uv run python 02_run_colmap.py
-uv run python 03_train_gaussian.py
-uv run python 05_export.py --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp>
+uv run --no-sync python 01_extract_frames.py --video input/room.mp4 --fps 2
+uv run --no-sync python 02_run_colmap.py
+uv run --no-sync python 03_train_gaussian.py
+uv run --no-sync python 05_export.py --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp>
 ```
 
 Use the latest timestamped folder under `outputs/nerfstudio_data/splatfacto/` (not `outputs/splatfacto/latest-run`).
@@ -69,24 +69,53 @@ Steps **01** (frames) and **02** (COLMAP) run fully on an M5/M-series Mac. **03*
 After `uv sync`, apply the nerfstudio MPS init fix (safe on all platforms):
 
 ```bash
-uv run python patch_nerfstudio_mps.py
+uv run --no-sync python patch_nerfstudio_mps.py
 ```
 
 Typical workflow on a Mac:
 
 1. Run `01_extract_frames.py` and `02_run_colmap.py` (or `pipeline.py` up to COLMAP).
 2. Copy `nerfstudio_data/` to a CUDA host.
-3. There: `uv sync --prerelease=allow && uv run python patch_nerfstudio_mps.py && uv run python 03_train_gaussian.py`
+3. There: `./scripts/setup_cloud.sh` then train (see below).
 4. Copy `outputs/` back and run `05_export.py` with the checkpoint path below.
 
 `03_train_gaussian.py` exits early on MPS/CPU when gsplat CUDA is missing, with this message, instead of failing mid-run.
+
+### Cloud GPU (vast.ai, etc.)
+
+On a **fresh Linux CUDA instance**, from the repo root:
+
+```bash
+git clone https://github.com/Ig0rFB/video-to-3d.git && cd video-to-3d
+chmod +x scripts/setup_cloud.sh
+./scripts/setup_cloud.sh
+```
+
+That installs **ffmpeg + COLMAP**, runs `uv sync`, applies the nerfstudio patch, installs **torch 2.5.1+cu124**, and verifies CUDA.
+
+Download data and train:
+
+```bash
+uv run --no-sync python input/download_mushroom.py --room coffee_room
+uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room
+```
+
+`03_train_gaussian.py` resolves `ns-process-data` from `.venv/bin/` and checks COLMAP + CUDA before training.
+
+If PyTorch breaks after a manual `uv add` / `uv lock`, repair with:
+
+```bash
+uv run --no-sync python scripts/ensure_env.py --fix-cuda --require-cuda
+```
+
+If you see `undefined symbol: ncclCommResume`, wheels were mixed — run `--fix-cuda` above and always use **`uv run --no-sync`** for training.
 
 ### MuSHRoom dataset (skip steps 01 and 02)
 
 One script downloads **COLMAP poses and RGB images** for all iPhone rooms (skips anything already on disk):
 
 ```bash
-uv run python input/download_mushroom.py
+uv run --no-sync python input/download_mushroom.py
 ```
 
 | Phase | Zenodo | Size |
@@ -100,32 +129,32 @@ Useful options:
 
 ```bash
 # One room only (e.g. coffee_room, ~4 GB images)
-uv run python input/download_mushroom.py --room coffee_room
+uv run --no-sync python input/download_mushroom.py --room coffee_room
 
 # COLMAP only or images only
-uv run python input/download_mushroom.py --colmap-only
-uv run python input/download_mushroom.py --images-only --room coffee_room
+uv run --no-sync python input/download_mushroom.py --colmap-only
+uv run --no-sync python input/download_mushroom.py --images-only --room coffee_room
 
 # SDF-only download (*_iphone_our): build images/ from *_rgb.png (COLMAP frame names)
-uv run python input/prepare_mushroom_images.py --mushroom input/MuSHRoom/room_datasets/coffee_room
+uv run --no-sync python input/prepare_mushroom_images.py --mushroom input/MuSHRoom/room_datasets/coffee_room
 ```
 
 Archives are cached under `input/_mushroom_archives/`. See the script docstring for step-by-step behaviour.
 
-To train without multi‑GB downloads, use your own video: `uv run python pipeline.py --video input/your.mp4`.
+To train without multi‑GB downloads, use your own video: `uv run --no-sync python pipeline.py --video input/your.mp4`.
 
 When both `images/` and `sparse/` exist, pass `--mushroom` to skip frame extraction and COLMAP:
 
 ```bash
 # Room root (defaults: iphone + long_capture)
-uv run python pipeline.py --mushroom input/MuSHRoom/room_datasets/coffee_room
+uv run --no-sync python pipeline.py --mushroom input/MuSHRoom/room_datasets/coffee_room
 
 # Or point at the capture folder directly
-uv run python pipeline.py \
+uv run --no-sync python pipeline.py \
   --mushroom input/MuSHRoom/room_datasets/coffee_room/iphone/long_capture
 
 # Kinect short sequence
-uv run python pipeline.py \
+uv run --no-sync python pipeline.py \
   --mushroom input/MuSHRoom/room_datasets/sauna \
   --mushroom-device kinect \
   --mushroom-capture short_capture
@@ -134,7 +163,7 @@ uv run python pipeline.py \
 Train only (same paths as pipeline):
 
 ```bash
-uv run python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room
+uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room
 ```
 
 ## Outputs
@@ -184,6 +213,8 @@ nerfstudio_data/    # ns-process-data output
 outputs/            # training checkpoints
 export/             # PLY + renders
 device.py           # shared device utility
+env_utils.py        # COLMAP / CLI / CUDA preflight helpers
+scripts/            # setup_cloud.sh, ensure_env.py
 pipeline.py         # orchestration
 01_extract_frames.py … 05_export.py
 DESIGN.md           # design rationale (after pipeline verified)

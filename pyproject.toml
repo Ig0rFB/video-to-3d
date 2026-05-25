@@ -14,12 +14,28 @@ dependencies = [
     "pycolmap>=4.0.4",
     "rich>=15.0.0",
     "scipy>=1.15.3",
-    "torch>=2.12.0",
-    "torchaudio>=2.11.0",
-    "torchvision>=0.27.0",
+    "torch==2.5.1",
+    "torchaudio==2.5.1",
+    "torchvision==0.20.1",
     "tqdm>=4.67.3",
     "tyro>=1.0.13",
 ]
 
 [tool.uv]
 required-version = ">=0.11"
+# Keep PyTorch on the pinned CUDA stack even when other deps request newer torch.
+override-dependencies = [
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+    "torchaudio==2.5.1",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124", marker = "sys_platform == 'linux'" }
+torchvision = { index = "pytorch-cu124", marker = "sys_platform == 'linux'" }
+torchaudio = { index = "pytorch-cu124", marker = "sys_platform == 'linux'" }

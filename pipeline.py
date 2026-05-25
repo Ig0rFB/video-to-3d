@@ -12,6 +12,11 @@ DEFAULT_VIDEO = "input/room.mp4"
 DEFAULT_CHECKPOINT = "outputs/splatfacto/latest-run"
 
 
+def uv_python(*script_args: str) -> list[str]:
+    """Run a project script without re-syncing the venv (avoids overwriting pinned CUDA torch)."""
+    return ["uv", "run", "--no-sync", "python", *script_args]
+
+
 def build_steps(
     video: str,
     mushroom: str | None,
@@ -27,49 +32,23 @@ def build_steps(
         )
         print(f"[mushroom] image_dir: {image_dir}")
         print(f"[mushroom] colmap_model: {colmap_model}")
-        train_step = [
-            "uv",
-            "run",
-            "python",
+        train_step = uv_python(
             "03_train_gaussian.py",
             "--image_dir",
             str(image_dir),
             "--colmap-model-path",
             str(colmap_model),
-        ]
+        )
         return [
             train_step,
-            [
-                "uv",
-                "run",
-                "python",
-                "05_export.py",
-                "--checkpoint_dir",
-                checkpoint_dir,
-            ],
+            uv_python("05_export.py", "--checkpoint_dir", checkpoint_dir),
         ]
 
     return [
-        [
-            "uv",
-            "run",
-            "python",
-            "01_extract_frames.py",
-            "--video",
-            video,
-            "--fps",
-            "2",
-        ],
-        ["uv", "run", "python", "02_run_colmap.py"],
-        ["uv", "run", "python", "03_train_gaussian.py"],
-        [
-            "uv",
-            "run",
-            "python",
-            "05_export.py",
-            "--checkpoint_dir",
-            checkpoint_dir,
-        ],
+        uv_python("01_extract_frames.py", "--video", video, "--fps", "2"),
+        uv_python("02_run_colmap.py"),
+        uv_python("03_train_gaussian.py"),
+        uv_python("05_export.py", "--checkpoint_dir", checkpoint_dir),
     ]
 
 
