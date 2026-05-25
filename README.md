@@ -60,6 +60,42 @@ For videos shorter than 30 seconds, try `--fps 3` or `--fps 4` in step 01 if COL
 
 **Training time:** ~20 min on CUDA (RTX 4090), ~60–90 min on MPS (M5 Pro). Do not interrupt `03_train_gaussian.py`.
 
+### MuSHRoom dataset (skip steps 01 and 02)
+
+Download the iPhone COLMAP pose archive (if missing):
+
+```bash
+uv run python input/download_mushroom.py
+```
+
+This fetches [room_datasets_iphone_colmap.tar](https://zenodo.org/records/13986996/files/room_datasets_iphone_colmap.tar?download=1) (~379 MB) into `input/MuSHRoom/room_datasets/`.
+
+If you have the [MuSHRoom](https://github.com/TUTvision/MuSHRoom) indoor room dataset with pre-computed COLMAP poses and RGB frames, pass `--mushroom` to skip frame extraction and COLMAP. You need **both**:
+
+- `images/` under each capture (main [Zenodo room download](https://zenodo.org/communities/mushroom))
+- `sparse/` COLMAP model ([Zenodo COLMAP poses](https://zenodo.org/records/13986996) — often under `sparse/0/0/`)
+
+```bash
+# Room root (defaults: iphone + long_capture)
+uv run python pipeline.py --mushroom input/MuSHRoom/room_datasets/coffee_room
+
+# Or point at the capture folder directly
+uv run python pipeline.py \
+  --mushroom input/MuSHRoom/room_datasets/coffee_room/iphone/long_capture
+
+# Kinect short sequence
+uv run python pipeline.py \
+  --mushroom input/MuSHRoom/room_datasets/sauna \
+  --mushroom-device kinect \
+  --mushroom-capture short_capture
+```
+
+Train only (same paths as pipeline):
+
+```bash
+uv run python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room
+```
+
 ## Outputs
 
 After a successful run, check `export/`:
