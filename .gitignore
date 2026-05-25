@@ -1,0 +1,11 @@
+outputs/
+checkpoints/
+frames/
+colmap_workspace/
+nerfstudio_data/
+export/
+__pycache__/
+*.pyc
+.DS_Store
+AGENT_BRIEF.md
+.venv/
