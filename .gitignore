@@ -9,5 +9,9 @@ __pycache__/
 .DS_Store
 AGENT_BRIEF.md
 .venv/
-input/MuSHRoom/
-input/*.tar
+# Local inputs (videos, datasets); keep placeholder and download script
+input/*
+!input/.gitkeep
+!input/download_mushroom.py
+!input/prepare_mushroom_images.py
+input/_mushroom_archives/

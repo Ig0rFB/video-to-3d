@@ -53,27 +53,68 @@ Or run stages manually:
 uv run python 01_extract_frames.py --video input/room.mp4 --fps 2
 uv run python 02_run_colmap.py
 uv run python 03_train_gaussian.py
-uv run python 05_export.py --checkpoint_dir outputs/splatfacto/latest-run
+uv run python 05_export.py --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp>
 ```
+
+Use the latest timestamped folder under `outputs/nerfstudio_data/splatfacto/` (not `outputs/splatfacto/latest-run`).
 
 For videos shorter than 30 seconds, try `--fps 3` or `--fps 4` in step 01 if COLMAP registers too few images.
 
-**Training time:** ~20 min on CUDA (RTX 4090), ~60–90 min on MPS (M5 Pro). Do not interrupt `03_train_gaussian.py`.
+**Training time:** ~20 min on CUDA (RTX 4090). Do not interrupt `03_train_gaussian.py`.
+
+### Apple Silicon (MPS)
+
+Steps **01** (frames) and **02** (COLMAP) run fully on an M5/M-series Mac. **03** (`splatfacto`) uses **gsplat’s CUDA rasteriser**, which is not built on macOS without an NVIDIA GPU — so Gaussian training must run on a **CUDA Linux/Windows machine** (or cloud GPU), not on MPS alone.
+
+After `uv sync`, apply the nerfstudio MPS init fix (safe on all platforms):
+
+```bash
+uv run python patch_nerfstudio_mps.py
+```
+
+Typical workflow on a Mac:
+
+1. Run `01_extract_frames.py` and `02_run_colmap.py` (or `pipeline.py` up to COLMAP).
+2. Copy `nerfstudio_data/` to a CUDA host.
+3. There: `uv sync --prerelease=allow && uv run python patch_nerfstudio_mps.py && uv run python 03_train_gaussian.py`
+4. Copy `outputs/` back and run `05_export.py` with the checkpoint path below.
+
+`03_train_gaussian.py` exits early on MPS/CPU when gsplat CUDA is missing, with this message, instead of failing mid-run.
 
 ### MuSHRoom dataset (skip steps 01 and 02)
 
-Download the iPhone COLMAP pose archive (if missing):
+One script downloads **COLMAP poses and RGB images** for all iPhone rooms (skips anything already on disk):
 
 ```bash
 uv run python input/download_mushroom.py
 ```
 
-This fetches [room_datasets_iphone_colmap.tar](https://zenodo.org/records/13986996/files/room_datasets_iphone_colmap.tar?download=1) (~379 MB) into `input/MuSHRoom/room_datasets/`.
+| Phase | Zenodo | Size |
+|-------|--------|------|
+| COLMAP `sparse/` (all 10 rooms) | [13986996](https://zenodo.org/records/13986996) | ~379 MB |
+| RGB `images/` per room | [10230733](https://zenodo.org/records/10230733) (`<room>_iphone.tar.gz`) | ~150–400 MB each |
 
-If you have the [MuSHRoom](https://github.com/TUTvision/MuSHRoom) indoor room dataset with pre-computed COLMAP poses and RGB frames, pass `--mushroom` to skip frame extraction and COLMAP. You need **both**:
+Do not use the larger `*_iphone_our.tar.gz` files on [10151161](https://zenodo.org/records/10151161) for training — those archives contain SDF derivatives only, not `images/`.
 
-- `images/` under each capture (main [Zenodo room download](https://zenodo.org/communities/mushroom))
-- `sparse/` COLMAP model ([Zenodo COLMAP poses](https://zenodo.org/records/13986996) — often under `sparse/0/0/`)
+Useful options:
+
+```bash
+# One room only (e.g. coffee_room, ~4 GB images)
+uv run python input/download_mushroom.py --room coffee_room
+
+# COLMAP only or images only
+uv run python input/download_mushroom.py --colmap-only
+uv run python input/download_mushroom.py --images-only --room coffee_room
+
+# SDF-only download (*_iphone_our): build images/ from *_rgb.png (COLMAP frame names)
+uv run python input/prepare_mushroom_images.py --mushroom input/MuSHRoom/room_datasets/coffee_room
+```
+
+Archives are cached under `input/_mushroom_archives/`. See the script docstring for step-by-step behaviour.
+
+To train without multi‑GB downloads, use your own video: `uv run python pipeline.py --video input/your.mp4`.
+
+When both `images/` and `sparse/` exist, pass `--mushroom` to skip frame extraction and COLMAP:
 
 ```bash
 # Room root (defaults: iphone + long_capture)
@@ -130,6 +171,7 @@ Add one extracted frame and one spiral render to `export/examples/` after your f
 
 - Device selection is centralised in `device.py` (`cuda` → `mps` → `cpu`).
 - `pipeline.py` sets `PYTORCH_ENABLE_MPS_FALLBACK=1` before any PyTorch import so unsupported MPS ops fall back to CPU.
+- **splatfacto / gsplat:** training needs CUDA; MPS is used for COLMAP and data prep only on Mac.
 - Do not hardcode device strings elsewhere in the codebase.
 
 ## Project layout

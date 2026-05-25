@@ -1,9 +1,28 @@
 import argparse
+import os
 import subprocess
+import sys
 from pathlib import Path
 
-from device import get_device
+from device import get_device, gsplat_cuda_available
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
+from patch_nerfstudio_mps import patch_splatfacto
+
+# Path relative to --output-dir for ns-process-data when reusing an existing COLMAP model
+NS_COLMAP_REL = Path("colmap/sparse/0")
+
+
+def _link_colmap_into_ns_data(colmap_model_path: Path, ns_data_dir: Path) -> str:
+    """
+    nerfstudio expects --colmap-model-path relative to the output dir when --skip-colmap is set.
+    Symlink our sparse model into nerfstudio_data/colmap/sparse/0.
+    """
+    dest = ns_data_dir / NS_COLMAP_REL
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists() or dest.is_symlink():
+        dest.unlink()
+    dest.symlink_to(colmap_model_path.resolve())
+    return str(NS_COLMAP_REL)
 
 
 def train(
@@ -13,6 +32,22 @@ def train(
     ns_data_dir: str = "nerfstudio_data",
 ) -> None:
     device = get_device()
+    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+    patch_splatfacto()
+
+    if device in ("mps", "cpu") and not gsplat_cuda_available():
+        raise SystemExit(
+            "\n[splatfacto] gsplat's CUDA rasteriser is not available on this machine "
+            "(expected on Apple Silicon without an NVIDIA GPU).\n\n"
+            "COLMAP and ns-process-data can still run here. For Gaussian training, use a "
+            "Linux host with CUDA, or copy `nerfstudio_data/` to such a machine and run:\n"
+            "  uv run python 03_train_gaussian.py\n"
+            "  (on the CUDA host, `get_device()` will select cuda automatically.)\n\n"
+            "See README.md → Apple Silicon.\n"
+        )
+
+    ns_path = Path(ns_data_dir)
+    colmap_rel = _link_colmap_into_ns_data(Path(colmap_model_path), ns_path)
 
     subprocess.run(
         [
@@ -22,8 +57,9 @@ def train(
             image_dir,
             "--output-dir",
             ns_data_dir,
+            "--skip-colmap",
             "--colmap-model-path",
-            colmap_model_path,
+            colmap_rel,
             "--no-gpu",
         ],
         check=True,
@@ -31,7 +67,8 @@ def train(
 
     subprocess.run(
         [
-            "ns-train",
+            sys.executable,
+            str(Path(__file__).resolve().parent / "run_ns_train.py"),
             "splatfacto",
             "--data",
             ns_data_dir,
@@ -41,7 +78,7 @@ def train(
             "30000",
             "--pipeline.model.cull-alpha-thresh",
             "0.005",
-            "--machine.device",
+            "--machine.device-type",
             device,
         ],
         check=True,
