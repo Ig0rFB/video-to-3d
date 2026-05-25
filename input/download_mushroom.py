@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import os
 import shutil
 import sys
 import tarfile
@@ -199,12 +200,18 @@ def _normalize_colmap_layout(extract_root: Path) -> None:
 
 def _merge_tree(src: Path, dest: Path) -> None:
     """Copy src into dest, overwriting files but keeping unrelated dest files."""
+    src = src.resolve()
+    dest = dest.resolve()
+    if src == dest:
+        return
     dest.mkdir(parents=True, exist_ok=True)
     for item in src.rglob("*"):
         if item.is_dir():
             continue
         rel = item.relative_to(src)
         target = dest / rel
+        if target.exists() and os.path.samefile(item, target):
+            continue
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(item, target)
 
@@ -217,9 +224,10 @@ def phase1_download_colmap(force: bool) -> None:
 
     _download(COLMAP_URL, COLMAP_ARCHIVE, force=force)
     _log("phase 1", f"Extracting {COLMAP_ARCHIVE.name}")
-    with tarfile.open(COLMAP_ARCHIVE, "r") as tar:
-        tar.extractall(path=INPUT_DIR)
-    _normalize_colmap_layout(INPUT_DIR)
+    with tempfile.TemporaryDirectory(prefix="mushroom_colmap_", dir=INPUT_DIR) as tmp:
+        with tarfile.open(COLMAP_ARCHIVE, "r") as tar:
+            tar.extractall(path=tmp)
+        _normalize_colmap_layout(Path(tmp))
 
     missing = [r for r in IPHONE_ROOM_ARCHIVES if not colmap_ready(r)]
     if missing:

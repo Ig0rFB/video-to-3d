@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import torch
+
 from device import get_device, gsplat_cuda_available
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
 from patch_nerfstudio_mps import patch_splatfacto
@@ -36,6 +38,17 @@ def train(
     patch_splatfacto()
 
     if device in ("mps", "cpu") and not gsplat_cuda_available():
+        if device == "cpu" and not torch.cuda.is_available():
+            raise SystemExit(
+                "\n[splatfacto] PyTorch cannot see a CUDA GPU on this machine.\n\n"
+                "On cloud GPU instances, `uv sync` often installs CPU-only PyTorch. Reinstall CUDA wheels, e.g.:\n"
+                "  uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124\n"
+                "Then verify:\n"
+                "  nvidia-smi\n"
+                "  uv run python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"\n\n"
+                "If the driver is too old for that wheel, pick a PyTorch CUDA build that matches `nvidia-smi`, "
+                "or rent an instance with a newer NVIDIA driver.\n"
+            )
         raise SystemExit(
             "\n[splatfacto] gsplat's CUDA rasteriser is not available on this machine "
             "(expected on Apple Silicon without an NVIDIA GPU).\n\n"
