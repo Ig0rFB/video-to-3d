@@ -1,11 +1,13 @@
 import argparse
 import subprocess
 
+from checkpoint_paths import LATEST_CHECKPOINT, resolve_checkpoint_dir
 from env_utils import resolve_cli
 
 
 def export(checkpoint_dir: str, skip_render: bool = False) -> None:
-    config = f"{checkpoint_dir}/config.yml"
+    run_dir = resolve_checkpoint_dir(checkpoint_dir)
+    config = f"{run_dir}/config.yml"
     ns_export = resolve_cli("ns-export")
 
     subprocess.run(
@@ -57,7 +59,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Export PLY + trajectory video (uv run --no-sync python 05_export.py …)"
     )
-    parser.add_argument("--checkpoint-dir", required=True)
+    parser.add_argument(
+        "--checkpoint-dir",
+        default=LATEST_CHECKPOINT,
+        help=(
+            f"Splatfacto run directory containing config.yml (default: {LATEST_CHECKPOINT} "
+            "— newest under outputs/splatfacto/)."
+        ),
+    )
     parser.add_argument(
         "--skip-render",
         action="store_true",

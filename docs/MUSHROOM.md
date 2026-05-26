@@ -21,7 +21,7 @@ uv run --no-sync python input/download_mushroom.py --room coffee_room
 uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room
 ```
 
-Checkpoints: `outputs/nerfstudio_data/splatfacto/<timestamp>/`
+Checkpoints: `outputs/splatfacto/<timestamp>/` (export with `05_export.py` or `--checkpoint-dir latest`)
 
 ## Download commands
 
@@ -65,8 +65,6 @@ uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_data
 ```
 
 Both `images/` and a valid `sparse/` model must exist. Check status in the downloader summary table.
-
-COLMAP pose folders are resolved by `colmap_paths.find_colmap_model()` (tries `sparse/0/0`, then `sparse/0`, then `sparse/`). The same logic applies to video-pipeline output under `colmap_workspace/`.
 
 ## Kinect rooms
 

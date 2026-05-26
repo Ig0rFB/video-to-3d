@@ -2,10 +2,10 @@ import argparse
 import subprocess
 import sys
 
+from checkpoint_paths import LATEST_CHECKPOINT, resolve_checkpoint_dir
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
 
 DEFAULT_VIDEO = "input/video.mp4"
-DEFAULT_CHECKPOINT = "outputs/splatfacto/latest-run"
 
 
 def uv_python(*script_args: str) -> list[str]:
@@ -18,7 +18,6 @@ def build_steps(
     mushroom: str | None,
     mushroom_device: str,
     mushroom_capture: str,
-    checkpoint_dir: str,
 ) -> list[list[str]]:
     if mushroom:
         image_dir, colmap_model = resolve_mushroom_paths(
@@ -35,17 +34,26 @@ def build_steps(
             "--colmap-model-path",
             str(colmap_model),
         )
-        return [
-            train_step,
-            uv_python("05_export.py", "--checkpoint-dir", checkpoint_dir),
-        ]
+        return [train_step, ["__export__"]]
 
     return [
         uv_python("01_extract_frames.py", "--video", video, "--fps", "2"),
         uv_python("02_run_colmap.py"),
         uv_python("03_train_gaussian.py"),
-        uv_python("05_export.py", "--checkpoint-dir", checkpoint_dir),
+        ["__export__"],
     ]
+
+
+def _run_step(step: list[str], checkpoint_dir: str) -> int:
+    if step == ["__export__"]:
+        resolved = resolve_checkpoint_dir(checkpoint_dir)
+        step = uv_python("05_export.py", "--checkpoint-dir", str(resolved))
+    print(f"\n>>> {' '.join(step)}\n")
+    result = subprocess.run(step, check=False)
+    if result.returncode != 0:
+        print(f"\nStep failed: {' '.join(step)}")
+        print("Resolve the error above before continuing.")
+    return result.returncode
 
 
 def main() -> None:
@@ -60,8 +68,11 @@ def main() -> None:
     add_mushroom_arguments(parser)
     parser.add_argument(
         "--checkpoint-dir",
-        default=DEFAULT_CHECKPOINT,
-        help=f"Trained splatfacto run for export (default: {DEFAULT_CHECKPOINT}).",
+        default=LATEST_CHECKPOINT,
+        help=(
+            f"Splatfacto run for export (default: {LATEST_CHECKPOINT} — resolved after training "
+            "from outputs/splatfacto/<timestamp>/)."
+        ),
     )
     args = parser.parse_args()
 
@@ -70,15 +81,10 @@ def main() -> None:
         mushroom=args.mushroom,
         mushroom_device=args.mushroom_device,
         mushroom_capture=args.mushroom_capture,
-        checkpoint_dir=args.checkpoint_dir,
     )
 
     for step in steps:
-        print(f"\n>>> {' '.join(step)}\n")
-        result = subprocess.run(step, check=False)
-        if result.returncode != 0:
-            print(f"\nStep failed: {' '.join(step)}")
-            print("Resolve the error above before continuing.")
+        if _run_step(step, args.checkpoint_dir) != 0:
             sys.exit(1)
 
     print("\nPipeline complete. Check export/ for outputs.")

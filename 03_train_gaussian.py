@@ -1,11 +1,8 @@
 import argparse
-import os
 import subprocess
-import sys
 from pathlib import Path
 
-import torch
-
+from colmap_paths import find_colmap_model
 from device import get_device, gsplat_cuda_available
 from env_utils import (
     check_cuda_torch,
@@ -13,39 +10,20 @@ from env_utils import (
     require_colmap_binary,
     resolve_cli,
 )
-from colmap_paths import find_colmap_model
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
 
 # Path relative to --output-dir for ns-process-data when reusing an existing COLMAP model
 NS_COLMAP_REL = Path("colmap/sparse/0")
 
 
-def _link_colmap_into_ns_data(colmap_model_path: Path, ns_data_dir: Path) -> str:
-    """
-    nerfstudio expects --colmap-model-path relative to the output dir when --skip-colmap is set.
-    Symlink our sparse model into nerfstudio_data/colmap/sparse/0.
-    """
-    dest = ns_data_dir / NS_COLMAP_REL
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.exists() or dest.is_symlink():
-        dest.unlink()
-    dest.symlink_to(colmap_model_path.resolve())
-    return str(NS_COLMAP_REL)
-
-
-def train(
-    image_dir: str,
-    colmap_model_path: str,
-    output_dir: str,
-    ns_data_dir: str = "nerfstudio_data",
-) -> None:
-    device = get_device()
-    if device != "cuda":
+def assert_splatfacto_environment() -> None:
+    """Verify CUDA, PyTorch, and gsplat before training."""
+    if get_device() != "cuda":
         raise SystemExit(
             "\n[splatfacto] This project is configured to run on CUDA-enabled machines only.\n\n"
             "Make sure your environment can see an NVIDIA GPU:\n"
             "  nvidia-smi\n"
-            "  uv run --no-sync python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"\n"
+            '  uv run --no-sync python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"\n'
         )
 
     cuda_issues = check_cuda_torch(strict=True)
@@ -64,14 +42,26 @@ def train(
             "Fix by reinstalling gsplat in this environment, and ensure you are on a CUDA host.\n"
         )
 
-    ns_path = Path(ns_data_dir)
-    colmap_rel = _link_colmap_into_ns_data(Path(colmap_model_path), ns_path)
-    require_colmap_binary()
-    ns_process_data = resolve_cli("ns-process-data")
 
+def link_colmap_for_nerfstudio(colmap_model_path: Path, ns_data_dir: Path) -> str:
+    """
+    nerfstudio expects --colmap-model-path relative to the output dir when --skip-colmap is set.
+    Symlink our sparse model into nerfstudio_data/colmap/sparse/0.
+    """
+    dest = ns_data_dir / NS_COLMAP_REL
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists() or dest.is_symlink():
+        dest.unlink()
+    dest.symlink_to(colmap_model_path.resolve())
+    return str(NS_COLMAP_REL)
+
+
+def run_ns_process_data(image_dir: str, ns_data_dir: str, colmap_rel: str) -> None:
+    """Convert images + COLMAP model into nerfstudio dataset layout."""
+    require_colmap_binary()
     subprocess.run(
         [
-            ns_process_data,
+            resolve_cli("ns-process-data"),
             "images",
             "--data",
             image_dir,
@@ -85,6 +75,9 @@ def train(
         check=True,
     )
 
+
+def run_ns_train_splatfacto(ns_data_dir: str, output_dir: str) -> None:
+    """Train splatfacto; checkpoints land under {output_dir}/splatfacto/<timestamp>/."""
     subprocess.run(
         [
             resolve_cli("ns-train"),
@@ -102,6 +95,18 @@ def train(
         ],
         check=True,
     )
+
+
+def train(
+    image_dir: str,
+    colmap_model_path: str,
+    output_dir: str,
+    ns_data_dir: str = "nerfstudio_data",
+) -> None:
+    assert_splatfacto_environment()
+    colmap_rel = link_colmap_for_nerfstudio(Path(colmap_model_path), Path(ns_data_dir))
+    run_ns_process_data(image_dir, ns_data_dir, colmap_rel)
+    run_ns_train_splatfacto(ns_data_dir, output_dir)
 
 
 def _resolve_paths(args: argparse.Namespace) -> tuple[str, str]:
@@ -133,7 +138,11 @@ if __name__ == "__main__":
         help="Explicit COLMAP sparse model directory (overrides --colmap-dir).",
     )
     add_mushroom_arguments(parser)
-    parser.add_argument("--output-dir", default="outputs/")
+    parser.add_argument(
+        "--output-dir",
+        default="outputs/",
+        help="Base directory for ns-train (runs: outputs/splatfacto/<timestamp>/).",
+    )
     parser.add_argument("--ns-data-dir", default="nerfstudio_data")
     args = parser.parse_args()
 
