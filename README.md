@@ -70,6 +70,15 @@ For videos shorter than 30 seconds, try `--fps 3` or `--fps 4` in step 01 if COL
 
 **Export:** `05_export.py` uses `ns-render interpolate` (not `spiral`). Video render can take a while on large scenes; PLY-only: `--skip-render`.
 
+**Viewer (local checkpoint):** use `run_ns_viewer.py` (plain `ns-viewer` fails on PyTorch 2.6+ `weights_only`):
+
+```bash
+uv run --no-sync python run_ns_viewer.py --load-config \
+  outputs/nerfstudio_data/splatfacto/<timestamp>/config.yml
+```
+
+On Mac without CUDA, prefer [SuperSplat](https://supersplat.ai/editor) with `export/splat.ply` if the viewer is slow or errors on gsplat.
+
 ### Apple Silicon (MPS)
 
 Steps **01** (frames) and **02** (COLMAP) run fully on an M5/M-series Mac. **03** (`splatfacto`) uses **gsplat’s CUDA rasteriser**, which is not built on macOS without an NVIDIA GPU — so Gaussian training must run on a **CUDA Linux/Windows machine** (or cloud GPU), not on MPS alone.
