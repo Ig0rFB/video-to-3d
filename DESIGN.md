@@ -10,7 +10,7 @@ Pipeline: **ffmpeg → COLMAP SfM → nerfstudio splatfacto (3DGS / gsplat) → 
 | Poses | COLMAP via `pycolmap` | Sparse reconstruction; single shared camera model |
 | Training | nerfstudio `splatfacto` + gsplat | 3D Gaussian scene representation |
 | Packaging | `ns-process-data` | Converts COLMAP + images to nerfstudio format |
-| Export | `ns-export` / `ns-render` | PLY point cloud and novel-view video |
+| Export | `ns-export` / `ns-render interpolate` | PLY + video along training camera path (not `spiral` — incompatible with splatfacto datamanager) |
 
 **MuSHRoom path:** pre-computed COLMAP and RGB from Zenodo skip steps 01–02; training uses `--mushroom` and `--skip-colmap` in `03_train_gaussian.py`.
 

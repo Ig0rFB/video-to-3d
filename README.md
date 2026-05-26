@@ -68,6 +68,8 @@ For videos shorter than 30 seconds, try `--fps 3` or `--fps 4` in step 01 if COL
 
 **Training time:** ~20 min on CUDA (RTX 4090). Do not interrupt `03_train_gaussian.py`.
 
+**Export:** `ns-render spiral` does not work with splatfacto; `05_export.py` uses `interpolate` instead. PLY-only: add `--skip-render`.
+
 ### Apple Silicon (MPS)
 
 Steps **01** (frames) and **02** (COLMAP) run fully on an M5/M-series Mac. **03** (`splatfacto`) uses **gsplat’s CUDA rasteriser**, which is not built on macOS without an NVIDIA GPU — so Gaussian training must run on a **CUDA Linux/Windows machine** (or cloud GPU), not on MPS alone.
@@ -162,7 +164,7 @@ After a successful run, check `export/`:
 | File | Description |
 |------|-------------|
 | `export/point_cloud.ply` | Gaussian splat point cloud — open in [MeshLab](https://www.meshlab.net/) or [CloudCompare](https://www.cloudcompare.org/) |
-| `export/render.mp4` | Novel-view spiral render around the scene |
+| `export/render.mp4` | Novel-view video (camera path interpolated from training poses) |
 | `export/examples/` | Example input frame and output render for documentation |
 
 Intermediate artefacts (`frames/`, `colmap_workspace/`, `nerfstudio_data/`, `outputs/`) are gitignored.
