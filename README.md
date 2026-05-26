@@ -42,7 +42,7 @@ ffmpeg -version
 
 ## Usage
 
-1. Place your video at `input/room.mp4` (or pass a custom path to individual steps).
+1. Place your video at `input/video.mp4` (or pass a custom path to individual steps).
 2. Run the full pipeline:
 
 ```bash

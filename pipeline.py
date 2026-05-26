@@ -4,7 +4,7 @@ import sys
 
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
 
-DEFAULT_VIDEO = "input/room.mp4"
+DEFAULT_VIDEO = "input/video.mp4"
 DEFAULT_CHECKPOINT = "outputs/splatfacto/latest-run"
 
 
