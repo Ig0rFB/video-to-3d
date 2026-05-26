@@ -77,7 +77,7 @@ uv run --no-sync python run_ns_viewer.py --load-config \
   outputs/nerfstudio_data/splatfacto/<timestamp>/config.yml
 ```
 
-On Mac without CUDA, prefer [SuperSplat](https://supersplat.ai/editor) with `export/splat.ply` if the viewer is slow or errors on gsplat.
+On Mac without CUDA, `run_ns_viewer.py` applies a **gsplat PyTorch fallback** (run once: `uv run --no-sync python patch_gsplat_non_cuda.py`). Rendering is **much slower** than on GPU; [SuperSplat](https://supersplat.ai/editor) + `export/splat.ply` is still the best preview. In the viewer: set **Output type** to `rgb`, turn off **Crop viewport** if the scene looks empty.
 
 ### Apple Silicon (MPS)
 
