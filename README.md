@@ -163,8 +163,13 @@ mkdir -p checkpoints
 curl -L -o checkpoints/sam2.1_hiera_large.pt \
   https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
 
-uv run --no-sync python 04_semantic_lift.py --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp>
+uv run --no-sync python 04_semantic_lift.py \
+  --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp> \
+  --frames_dir <frames-or-images-dir> \
+  --output_dir semantic/
 ```
+
+This writes per-frame overlays to `semantic/overlays/` and a video to `semantic/overlay.mp4`.
 
 ## Example
 
