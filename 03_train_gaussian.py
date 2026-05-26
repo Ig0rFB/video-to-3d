@@ -13,6 +13,7 @@ from env_utils import (
     require_colmap_binary,
     resolve_cli,
 )
+from colmap_paths import find_colmap_model
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
 
 # Path relative to --output-dir for ns-process-data when reusing an existing COLMAP model
@@ -112,17 +113,8 @@ def _resolve_paths(args: argparse.Namespace) -> tuple[str, str]:
         )
         return str(image_dir), str(colmap_model)
 
-    colmap_model = str(Path(args.colmap_dir) / "sparse" / "0")
-    if not _has_colmap_at(colmap_model):
-        nested = str(Path(args.colmap_dir) / "sparse" / "0" / "0")
-        if _has_colmap_at(nested):
-            colmap_model = nested
+    colmap_model = str(find_colmap_model(Path(args.colmap_dir)))
     return args.image_dir, colmap_model
-
-
-def _has_colmap_at(path: str) -> bool:
-    p = Path(path)
-    return (p / "cameras.bin").exists() or (p / "cameras.txt").exists()
 
 
 if __name__ == "__main__":

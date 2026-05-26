@@ -42,7 +42,11 @@ Grounding DINO + SAM2 → 2D masks → majority vote on projected Gaussian centr
 - **`scripts/setup_cloud.sh`** — one-shot cloud instance setup (apt deps, sync, patch, CUDA verify).
 - **`env_utils.py`** — COLMAP binary check, `.venv/bin` CLI resolution, CUDA preflight.
 
-## 6. MuSHRoom data sources
+## 6. COLMAP path resolution
+
+`colmap_paths.py` is the single place that decides whether a directory contains a valid COLMAP sparse model (`cameras.bin` / `cameras.txt`, etc.) and which of `sparse/0/0`, `sparse/0`, or `sparse/` to use. Training (`03_train_gaussian.py`), MuSHRoom helpers (`mushroom_paths.py`), and the downloader (`input/download_mushroom.py`) all call `find_colmap_model()` so nested Zenodo layouts and `colmap_workspace/` exports stay consistent.
+
+## 7. MuSHRoom data sources
 
 | Content | Zenodo | Notes |
 |---------|--------|--------|

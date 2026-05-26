@@ -192,6 +192,7 @@ colmap_workspace/   # COLMAP sparse model
 nerfstudio_data/    # ns-process-data output
 outputs/            # training checkpoints
 export/             # PLY + renders
+colmap_paths.py     # locate COLMAP sparse/0 (and sparse/0/0) models
 device.py           # shared device utility
 env_utils.py        # COLMAP / CLI / CUDA preflight helpers
 scripts/            # setup_cloud.sh, ensure_env.py
