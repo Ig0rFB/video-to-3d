@@ -40,7 +40,6 @@ FALLBACK_BODY = """\
 
 """
 
-# gsplat 1.4 _rasterization(): use torch_impl isect helpers when CUDA ext is missing
 TORCH_RASTER_MARKER = "_isect_tiles,\n        _isect_offset_encode,\n        _spherical_harmonics,"
 TORCH_RASTER_PATCH = """\
     from gsplat.cuda._backend import _C as _gsplat_cuda
@@ -108,9 +107,14 @@ ISECT_CALL_OLD = """\
     )
 """
 
-SH_CALL_MARKER = "colors = colors * masks[..., None]"
+# Unique to _rasterization() — do not patch the main rasterization() SH block.
+SH_PATCH_MARKER = "# gsplat non-cuda SH (_rasterization only)"
 SH_CALL_OLD = """\
         colors = spherical_harmonics(sh_degree, dirs, shs, masks=masks)  # [C, N, 3]
+        # make it apple-to-apple with Inria's CUDA Backend.
+        colors = torch.clamp_min(colors + 0.5, 0.0)
+
+    # Rasterize to pixels
 """
 SH_CALL_NEW = """\
         if _gsplat_cuda is None:
@@ -118,7 +122,15 @@ SH_CALL_NEW = """\
             colors = colors * masks[..., None]
         else:
             colors = spherical_harmonics(sh_degree, dirs, shs, masks=masks)  # [C, N, 3]
+        # make it apple-to-apple with Inria's CUDA Backend.
+        colors = torch.clamp_min(colors + 0.5, 0.0)
+
+    # Rasterize to pixels
 """
+
+
+def _validate_syntax(rendering: Path) -> None:
+    compile(rendering.read_text(), str(rendering), "exec")
 
 
 def patch_gsplat_rendering(site_packages: Path | None = None) -> Path:
@@ -144,36 +156,50 @@ def patch_gsplat_rendering(site_packages: Path | None = None) -> Path:
         text = text.replace(needle, f'    """\n{FALLBACK_BODY}\n    meta = {{}}', 1)
         changed = True
 
-    if TORCH_RASTER_MARKER not in text:
-        if TORCH_RASTER_OLD not in text:
-            raise RuntimeError(
-                f"Could not find _rasterization import block in {rendering}."
-            )
-        text = text.replace(TORCH_RASTER_OLD, TORCH_RASTER_PATCH, 1)
-        changed = True
+    # Only patch inside _rasterization (after its def line).
+    if "def _rasterization" in text:
+        head, tail = text.split("def _rasterization", 1)
+        rast_body = tail
+        rast_changed = False
 
-    if ISECT_CALL_MARKER not in text:
-        if ISECT_CALL_OLD not in text:
-            raise RuntimeError(
-                f"Could not find isect_tiles call in _rasterization in {rendering}."
-            )
-        text = text.replace(ISECT_CALL_OLD, ISECT_CALL_NEW, 1)
-        changed = True
+        if TORCH_RASTER_MARKER not in rast_body:
+            if TORCH_RASTER_OLD not in rast_body:
+                raise RuntimeError(
+                    f"Could not find _rasterization import block in {rendering}."
+                )
+            rast_body = rast_body.replace(TORCH_RASTER_OLD, TORCH_RASTER_PATCH, 1)
+            rast_changed = True
 
-    if SH_CALL_MARKER not in text:
-        if SH_CALL_OLD not in text:
-            raise RuntimeError(
-                f"Could not find spherical_harmonics call in _rasterization in {rendering}."
-            )
-        text = text.replace(SH_CALL_OLD, SH_CALL_NEW, 1)
-        changed = True
+        if ISECT_CALL_MARKER not in rast_body:
+            if ISECT_CALL_OLD not in rast_body:
+                raise RuntimeError(
+                    f"Could not find isect_tiles call in _rasterization in {rendering}."
+                )
+            rast_body = rast_body.replace(ISECT_CALL_OLD, ISECT_CALL_NEW, 1)
+            rast_changed = True
+
+        if SH_PATCH_MARKER not in rast_body and SH_CALL_OLD in rast_body:
+            rast_body = rast_body.replace(SH_CALL_OLD, SH_CALL_NEW, 1)
+            rast_changed = True
+
+        if rast_changed:
+            text = head + "def _rasterization" + rast_body
+            changed = True
 
     if not changed:
         print(f"[patch] gsplat CPU/MPS fallback already applied: {rendering}")
-        return rendering
+    else:
+        rendering.write_text(text)
+        print(f"[patch] Applied gsplat CPU/MPS rasterizer fallback: {rendering}")
 
-    rendering.write_text(text)
-    print(f"[patch] Applied gsplat CPU/MPS rasterizer fallback: {rendering}")
+    try:
+        _validate_syntax(rendering)
+    except SyntaxError as exc:
+        raise RuntimeError(
+            f"gsplat rendering.py has a syntax error after patching: {exc}. "
+            "Reinstall gsplat: uv pip reinstall gsplat"
+        ) from exc
+
     return rendering
 
 
