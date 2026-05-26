@@ -54,13 +54,17 @@ Grounding DINO + SAM2 → 2D masks → majority vote on projected Gaussian centr
 | RGB `images/` per room | [10230733](https://zenodo.org/records/10230733) | `<room>_iphone.tar.gz` |
 | SDF only (no `images/`) | [10151161](https://zenodo.org/records/10151161) | Use `prepare_mushroom_images.py` only if you already have `*_iphone_our` |
 
-## 7. CLI conventions
+## 8. CLI conventions
 
 Pipeline scripts use **hyphenated** long options (`--checkpoint-dir`, `--colmap-dir`). `argparse` maps these to snake_case attributes (`args.checkpoint_dir`). Use hyphens in shell commands and docs; use attribute names in Python.
 
-## 8. Future work
+## 9. Checkpoint resolution
 
-- LangSplat / Feature 3DGS for language queries.
+`checkpoint_paths.py` finds trained splatfacto runs (directories containing `config.yml`). `ns-train` with `--output-dir outputs/` writes to `outputs/splatfacto/<timestamp>/`. `pipeline.py` and `05_export.py` default to `latest` so export runs after training without hand-copying paths.
+
+## 10. Future work
+
+- LangSplat / Feature 3D GS for language queries.
 - Mesh from Gaussian opacity field + marching cubes.
 - DUSt3R poses → 3DGS hybrid benchmark vs COLMAP on the same room.
 - Depth prior (e.g. Depth Anything v2) for sparse registrations.

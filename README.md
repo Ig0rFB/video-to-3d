@@ -44,8 +44,6 @@ ffmpeg -version
 
 ## Usage
 
-Multi-word CLI flags use **hyphens** (e.g. `--checkpoint-dir`, `--image-dir`). In Python they appear as `args.checkpoint_dir`, `args.image_dir`, etc.
-
 1. Place your video at `input/video.mp4` (or pass a custom path to individual steps).
 2. Run the full pipeline:
 
@@ -59,7 +57,7 @@ Or run stages manually:
 uv run --no-sync python 01_extract_frames.py --video input/room.mp4 --fps 2
 uv run --no-sync python 02_run_colmap.py
 uv run --no-sync python 03_train_gaussian.py
-uv run --no-sync python 05_export.py --checkpoint-dir outputs/nerfstudio_data/splatfacto/<timestamp>
+uv run --no-sync python 05_export.py --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp>
 ```
 
 Use the latest timestamped folder under `outputs/nerfstudio_data/splatfacto/` (not `outputs/splatfacto/latest-run`).
@@ -168,9 +166,9 @@ curl -L -o checkpoints/sam2.1_hiera_large.pt \
   https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
 
 uv run --no-sync python 04_semantic_lift.py \
-  --checkpoint-dir outputs/nerfstudio_data/splatfacto/<timestamp> \
-  --frames-dir <frames-or-images-dir> \
-  --output-dir semantic/
+  --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp> \
+  --frames_dir <frames-or-images-dir> \
+  --output_dir semantic/
 ```
 
 This writes per-frame overlays to `semantic/overlays/` and a video to `semantic/overlay.mp4`.
@@ -194,7 +192,8 @@ colmap_workspace/   # COLMAP sparse model
 nerfstudio_data/    # ns-process-data output
 outputs/            # training checkpoints
 export/             # PLY + renders
-colmap_paths.py     # locate COLMAP sparse/0 (and sparse/0/0) models
+colmap_paths.py     # locate COLMAP sparse models
+checkpoint_paths.py # resolve splatfacto checkpoints (latest or explicit)
 device.py           # shared device utility
 env_utils.py        # COLMAP / CLI / CUDA preflight helpers
 scripts/            # setup_cloud.sh, ensure_env.py
