@@ -3,7 +3,7 @@
 Preflight checks for video-to-3d. Safe to run after every `uv sync`.
 
   uv run --no-sync python scripts/ensure_env.py
-  uv run --no-sync python scripts/ensure_env.py --fix-cuda   # Linux: reinstall cu124 torch
+  uv run --no-sync python scripts/ensure_env.py --fix-cuda --require-cuda
 """
 
 from __future__ import annotations

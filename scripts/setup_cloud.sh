@@ -24,6 +24,6 @@ echo "==> Verify / repair CUDA PyTorch in .venv"
 uv run --no-sync python scripts/ensure_env.py --fix-cuda --require-cuda
 
 echo ""
-echo "Ready. Train with:"
+echo "Ready. See docs/CLOUD_GPU.md and docs/MUSHROOM.md"
 echo "  uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room"
-echo "Avoid plain 'uv run' without --no-sync before training (it can re-resolve torch)."
+echo "Use --no-sync for all pipeline commands (plain uv run can re-resolve torch)."

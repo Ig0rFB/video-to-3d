@@ -14,4 +14,8 @@ input/*
 !input/.gitkeep
 !input/download_mushroom.py
 !input/prepare_mushroom_images.py
+!input/MuSHRoom/
+!input/MuSHRoom/TRAINING.md
+input/MuSHRoom/**
+!input/MuSHRoom/TRAINING.md
 input/_mushroom_archives/

@@ -3,7 +3,7 @@
 MuSHRoom iPhone dataset downloader (COLMAP poses + RGB images).
 
 This script prepares everything needed for:
-  uv run python pipeline.py --mushroom input/MuSHRoom/room_datasets/<room>
+  uv run --no-sync python pipeline.py --mushroom input/MuSHRoom/room_datasets/<room>
 
 It runs in two phases:
 
@@ -401,7 +401,7 @@ def print_summary() -> None:
         example = ready[0]
         print(
             f"\nExample training command:\n"
-            f"  uv run python pipeline.py "
+            f"  uv run --no-sync python pipeline.py "
             f"--mushroom {ROOM_DATASETS / example}"
         )
 

@@ -13,6 +13,12 @@ Reconstruct a geometrically coherent 3D indoor scene from a short phone-captured
 
 Hardware: CUDA, Apple Silicon MPS, or CPU. The active backend is chosen automatically (see `device.py`).
 
+| Guide | Contents |
+|-------|----------|
+| [docs/CLOUD_GPU.md](docs/CLOUD_GPU.md) | vast.ai / Linux CUDA one-shot setup and troubleshooting |
+| [docs/MUSHROOM.md](docs/MUSHROOM.md) | MuSHRoom download, Zenodo archives, train commands |
+| [DESIGN.md](DESIGN.md) | Stack choices, hardware strategy, future work |
+
 ## Installation
 
 ```bash
@@ -83,34 +89,17 @@ Typical workflow on a Mac:
 
 ### Cloud GPU (vast.ai, etc.)
 
-On a **fresh Linux CUDA instance**, from the repo root:
+See **[docs/CLOUD_GPU.md](docs/CLOUD_GPU.md)** for the full checklist. Short version:
 
 ```bash
 git clone https://github.com/Ig0rFB/video-to-3d.git && cd video-to-3d
-chmod +x scripts/setup_cloud.sh
 ./scripts/setup_cloud.sh
-```
-
-That installs **ffmpeg + COLMAP**, runs `uv sync`, applies the nerfstudio patch, installs **torch 2.5.1+cu124**, and verifies CUDA.
-
-Download data and train:
-
-```bash
-uv run --no-sync python input/download_mushroom.py --room coffee_room
 uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room
 ```
 
-`03_train_gaussian.py` resolves `ns-process-data` from `.venv/bin/` and checks COLMAP + CUDA before training.
-
-If PyTorch breaks after a manual `uv add` / `uv lock`, repair with:
-
-```bash
-uv run --no-sync python scripts/ensure_env.py --fix-cuda --require-cuda
-```
-
-If you see `undefined symbol: ncclCommResume`, wheels were mixed — run `--fix-cuda` above and always use **`uv run --no-sync`** for training.
-
 ### MuSHRoom dataset (skip steps 01 and 02)
+
+See **[docs/MUSHROOM.md](docs/MUSHROOM.md)** for Zenodo IDs and layout.
 
 One script downloads **COLMAP poses and RGB images** for all iPhone rooms (skips anything already on disk):
 
@@ -189,7 +178,7 @@ mkdir -p checkpoints
 curl -L -o checkpoints/sam2.1_hiera_large.pt \
   https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
 
-uv run python 04_semantic_lift.py --checkpoint_dir outputs/splatfacto/latest-run
+uv run --no-sync python 04_semantic_lift.py --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp>
 ```
 
 ## Example
@@ -215,7 +204,9 @@ export/             # PLY + renders
 device.py           # shared device utility
 env_utils.py        # COLMAP / CLI / CUDA preflight helpers
 scripts/            # setup_cloud.sh, ensure_env.py
-pipeline.py         # orchestration
+docs/               # CLOUD_GPU.md, MUSHROOM.md
+pipeline.py         # orchestration (uses uv run --no-sync)
 01_extract_frames.py … 05_export.py
-DESIGN.md           # design rationale (after pipeline verified)
+patch_nerfstudio_mps.py
+DESIGN.md           # design rationale
 ```

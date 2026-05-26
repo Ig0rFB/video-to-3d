@@ -71,7 +71,7 @@ def train(
             "(expected on Apple Silicon without an NVIDIA GPU).\n\n"
             "COLMAP and ns-process-data can still run here. For Gaussian training, use a "
             "Linux host with CUDA, or copy `nerfstudio_data/` to such a machine and run:\n"
-            "  uv run python 03_train_gaussian.py\n"
+            "  uv run --no-sync python 03_train_gaussian.py\n"
             "  (on the CUDA host, `get_device()` will select cuda automatically.)\n\n"
             "See README.md → Apple Silicon.\n"
         )

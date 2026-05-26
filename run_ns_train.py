@@ -1,7 +1,7 @@
 """
 Entry point for ns-train that applies Apple Silicon / non-CUDA patches first.
 
-Usage: uv run python run_ns_train.py splatfacto --data ... [ns-train args]
+Usage: uv run --no-sync python run_ns_train.py splatfacto --data ... [ns-train args]
 """
 
 from __future__ import annotations
