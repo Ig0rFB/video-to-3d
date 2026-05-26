@@ -36,6 +36,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from colmap_paths import find_colmap_model
+
 try:
     from tqdm import tqdm
 except ImportError:
@@ -77,7 +81,6 @@ IPHONE_ROOM_ARCHIVES: dict[str, tuple[str, str]] = {
 
 DEVICE = "iphone"
 CAPTURE = "long_capture"
-COLMAP_MARKERS = ("cameras.bin", "cameras.txt")
 
 
 def _zenodo_url(record_id: str, filename: str) -> str:
@@ -134,10 +137,6 @@ def _download(url: str, dest: Path, force: bool = False) -> None:
                 print()
 
 
-def _has_colmap_model(path: Path) -> bool:
-    return any((path / name).exists() for name in COLMAP_MARKERS)
-
-
 def room_colmap_dir(room: str) -> Path:
     return ROOM_DATASETS / room / DEVICE / CAPTURE
 
@@ -147,15 +146,7 @@ def room_images_dir(room: str) -> Path:
 
 
 def colmap_ready(room: str) -> bool:
-    capture = room_colmap_dir(room)
-    for candidate in (
-        capture / "sparse" / "0" / "0",
-        capture / "sparse" / "0",
-        capture / "sparse",
-    ):
-        if _has_colmap_model(candidate):
-            return True
-    return False
+    return find_colmap_model(room_colmap_dir(room), raise_if_missing=False) is not None
 
 
 def images_ready(room: str) -> bool:

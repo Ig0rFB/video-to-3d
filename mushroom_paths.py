@@ -10,30 +10,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-COLMAP_MARKERS = ("cameras.bin", "cameras.txt", "images.bin", "images.txt")
+from colmap_paths import find_colmap_model
+
 VALID_DEVICES = ("iphone", "kinect")
 VALID_CAPTURES = ("long_capture", "short_capture")
-
-
-def _has_colmap_model(path: Path) -> bool:
-    return any((path / name).exists() for name in COLMAP_MARKERS)
-
-
-def find_colmap_model(capture_dir: Path) -> Path:
-    """Return the COLMAP sparse model directory (handles sparse/0 and sparse/0/0)."""
-    candidates = [
-        capture_dir / "sparse" / "0" / "0",
-        capture_dir / "sparse" / "0",
-        capture_dir / "sparse",
-    ]
-    for candidate in candidates:
-        if _has_colmap_model(candidate):
-            return candidate.resolve()
-    raise FileNotFoundError(
-        f"No COLMAP sparse model found under {capture_dir}/sparse. "
-        "Expected cameras.bin/txt under sparse/0 or sparse/0/0 "
-        "(Zenodo iPhone COLMAP release)."
-    )
 
 
 def find_image_dir(capture_dir: Path) -> Path:

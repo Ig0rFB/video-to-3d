@@ -66,6 +66,8 @@ uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_data
 
 Both `images/` and a valid `sparse/` model must exist. Check status in the downloader summary table.
 
+COLMAP pose folders are resolved by `colmap_paths.find_colmap_model()` (tries `sparse/0/0`, then `sparse/0`, then `sparse/`). The same logic applies to video-pipeline output under `colmap_workspace/`.
+
 ## Kinect rooms
 
 ```bash
