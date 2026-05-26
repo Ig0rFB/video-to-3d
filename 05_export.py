@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Export PLY + trajectory video (uv run --no-sync python 05_export.py …)"
     )
-    parser.add_argument("--checkpoint_dir", required=True)
+    parser.add_argument("--checkpoint-dir", required=True)
     parser.add_argument(
         "--skip-render",
         action="store_true",

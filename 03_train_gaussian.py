@@ -121,20 +121,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Train splatfacto (use: uv run --no-sync python 03_train_gaussian.py …)"
     )
-    parser.add_argument("--image_dir", default="frames/")
+    parser.add_argument("--image-dir", default="frames/")
     parser.add_argument(
-        "--colmap_dir",
+        "--colmap-dir",
         default="colmap_workspace/",
         help="Workspace from 02_run_colmap (uses sparse/0 under this dir).",
     )
     parser.add_argument(
         "--colmap-model-path",
         default=None,
-        help="Explicit COLMAP sparse model directory (overrides --colmap_dir).",
+        help="Explicit COLMAP sparse model directory (overrides --colmap-dir).",
     )
     add_mushroom_arguments(parser)
-    parser.add_argument("--output_dir", default="outputs/")
-    parser.add_argument("--ns_data_dir", default="nerfstudio_data")
+    parser.add_argument("--output-dir", default="outputs/")
+    parser.add_argument("--ns-data-dir", default="nerfstudio_data")
     args = parser.parse_args()
 
     if args.colmap_model_path:

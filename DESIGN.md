@@ -54,7 +54,11 @@ Grounding DINO + SAM2 → 2D masks → majority vote on projected Gaussian centr
 | RGB `images/` per room | [10230733](https://zenodo.org/records/10230733) | `<room>_iphone.tar.gz` |
 | SDF only (no `images/`) | [10151161](https://zenodo.org/records/10151161) | Use `prepare_mushroom_images.py` only if you already have `*_iphone_our` |
 
-## 7. Future work
+## 7. CLI conventions
+
+Pipeline scripts use **hyphenated** long options (`--checkpoint-dir`, `--colmap-dir`). `argparse` maps these to snake_case attributes (`args.checkpoint_dir`). Use hyphens in shell commands and docs; use attribute names in Python.
+
+## 8. Future work
 
 - LangSplat / Feature 3DGS for language queries.
 - Mesh from Gaussian opacity field + marching cubes.

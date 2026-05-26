@@ -317,15 +317,15 @@ def lift_semantics(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint_dir", required=True)
-    parser.add_argument("--frames_dir", default="frames/")
-    parser.add_argument("--output_dir", default="semantic/")
+    parser.add_argument("--checkpoint-dir", required=True)
+    parser.add_argument("--frames-dir", default="frames/")
+    parser.add_argument("--output-dir", default="semantic/")
     parser.add_argument("--stride", type=int, default=1)
-    parser.add_argument("--max_frames", type=int, default=None)
-    parser.add_argument("--box_threshold", type=float, default=0.35)
-    parser.add_argument("--text_threshold", type=float, default=0.25)
-    parser.add_argument("--overlay_alpha", type=float, default=0.45)
-    parser.add_argument("--no_video", action="store_true")
+    parser.add_argument("--max-frames", type=int, default=None)
+    parser.add_argument("--box-threshold", type=float, default=0.35)
+    parser.add_argument("--text-threshold", type=float, default=0.25)
+    parser.add_argument("--overlay-alpha", type=float, default=0.45)
+    parser.add_argument("--no-video", action="store_true")
     args = parser.parse_args()
     lift_semantics(
         args.checkpoint_dir,

@@ -1,6 +1,6 @@
 import argparse
-import pathlib
 import shutil
+from pathlib import Path
 
 import pycolmap
 
@@ -11,8 +11,8 @@ MIN_REGISTERED_FRACTION = 0.3
 
 
 def run_colmap(image_dir: str, output_dir: str) -> None:
-    image_path = pathlib.Path(image_dir)
-    output_path = pathlib.Path(output_dir)
+    image_path = Path(image_dir)
+    output_path = Path(output_dir)
     if output_path.exists():
         shutil.rmtree(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -104,7 +104,7 @@ def run_colmap(image_dir: str, output_dir: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_dir", default="frames/")
-    parser.add_argument("--output_dir", default="colmap_workspace/")
+    parser.add_argument("--image-dir", default="frames/")
+    parser.add_argument("--output-dir", default="colmap_workspace/")
     args = parser.parse_args()
     run_colmap(args.image_dir, args.output_dir)

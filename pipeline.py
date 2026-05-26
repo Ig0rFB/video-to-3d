@@ -30,21 +30,21 @@ def build_steps(
         print(f"[mushroom] colmap_model: {colmap_model}")
         train_step = uv_python(
             "03_train_gaussian.py",
-            "--image_dir",
+            "--image-dir",
             str(image_dir),
             "--colmap-model-path",
             str(colmap_model),
         )
         return [
             train_step,
-            uv_python("05_export.py", "--checkpoint_dir", checkpoint_dir),
+            uv_python("05_export.py", "--checkpoint-dir", checkpoint_dir),
         ]
 
     return [
         uv_python("01_extract_frames.py", "--video", video, "--fps", "2"),
         uv_python("02_run_colmap.py"),
         uv_python("03_train_gaussian.py"),
-        uv_python("05_export.py", "--checkpoint_dir", checkpoint_dir),
+        uv_python("05_export.py", "--checkpoint-dir", checkpoint_dir),
     ]
 
 
