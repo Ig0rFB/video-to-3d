@@ -1,6 +1,5 @@
 import argparse
 import subprocess
-import sys
 
 from env_utils import resolve_cli
 
@@ -26,7 +25,7 @@ def export(checkpoint_dir: str, skip_render: bool = False) -> None:
         print("[export] Skipped video render (--skip-render).")
         return
 
-    # spiral requires VanillaDataManager; splatfacto uses FullImageDatamanager.
+    # spiral needs VanillaDataManager; render-nearest-camera needs depth (splatfacto has neither).
     ns_render = resolve_cli("ns-render")
     subprocess.run(
         [
@@ -41,9 +40,13 @@ def export(checkpoint_dir: str, skip_render: bool = False) -> None:
             "--order-poses",
             "True",
             "--interpolation-steps",
-            "5",
+            "2",
+            "--frame-rate",
+            "24",
             "--render-nearest-camera",
-            "True",
+            "False",
+            "--rendered-output-names",
+            "rgb",
         ],
         check=True,
     )

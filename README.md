@@ -68,7 +68,7 @@ For videos shorter than 30 seconds, try `--fps 3` or `--fps 4` in step 01 if COL
 
 **Training time:** ~20 min on CUDA (RTX 4090). Do not interrupt `03_train_gaussian.py`.
 
-**Export:** `ns-render spiral` does not work with splatfacto; `05_export.py` uses `interpolate` instead. PLY-only: add `--skip-render`.
+**Export:** `05_export.py` uses `ns-render interpolate` (not `spiral`). Video render can take a while on large scenes; PLY-only: `--skip-render`.
 
 ### Apple Silicon (MPS)
 
