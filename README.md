@@ -8,10 +8,9 @@ Reconstruct a geometrically coherent 3D indoor scene from a short phone-captured
 - **[uv](https://docs.astral.sh/uv/)** — package and environment management
 - **ffmpeg** — frame extraction
 - **COLMAP** — camera poses and sparse reconstruction
-- **macOS:** Homebrew for system deps (`brew install ffmpeg colmap`)
 - **Linux:** `sudo apt-get install -y ffmpeg colmap`
 
-Hardware: CUDA, Apple Silicon MPS, or CPU. The active backend is chosen automatically (see `device.py`).
+Hardware: **CUDA-enabled NVIDIA GPU**. This project is configured to run on CUDA only.
 
 | Guide | Contents |
 |-------|----------|
@@ -31,8 +30,7 @@ cd video-to-3d
 # Reproduce the environment from the lockfile
 uv sync --prerelease=allow
 
-# Patches + preflight (safe on Mac and Linux)
-uv run --no-sync python patch_nerfstudio_mps.py
+# Preflight
 uv run --no-sync python scripts/ensure_env.py
 
 # Verify system tools
@@ -40,8 +38,6 @@ colmap help
 ffmpeg -version
 ```
 
-> **Note:** `nerfstudio` on arm64 requires pre-release resolution. Use `uv sync --prerelease=allow` when adding packages.
->
 > **PyTorch:** Linux CUDA hosts use **torch 2.5.1 + cu124** from `pyproject.toml` (not the latest PyPI CUDA 13 wheel). After `uv sync`, run pipeline commands with **`uv run --no-sync`** so uv does not re-resolve torch. Plain `uv run` without `--no-sync` may still change wheels if you edit dependencies.
 
 ## Usage
@@ -69,41 +65,6 @@ For videos shorter than 30 seconds, try `--fps 3` or `--fps 4` in step 01 if COL
 **Training time:** ~20 min on CUDA (RTX 4090). Do not interrupt `03_train_gaussian.py`.
 
 **Export:** `05_export.py` uses `ns-render interpolate` (not `spiral`). Video render can take a while on large scenes; PLY-only: `--skip-render`.
-
-**Viewer (local checkpoint):** use `run_ns_viewer.py` (plain `ns-viewer` fails on PyTorch 2.6+ `weights_only`):
-
-```bash
-uv run --no-sync python run_ns_viewer.py --load-config \
-  outputs/nerfstudio_data/splatfacto/<timestamp>/config.yml
-```
-
-On Mac without CUDA, run once after install:
-
-```bash
-uv run --no-sync python patch_gsplat_non_cuda.py
-# if patch fails or gsplat is broken: chmod +x scripts/reset_gsplat.sh && ./scripts/reset_gsplat.sh
-```
-
-`run_ns_viewer.py` applies this automatically. Rendering is **much slower** than on GPU; [SuperSplat](https://supersplat.ai/editor) + `export/splat.ply` is the best preview.
-
-### Apple Silicon (MPS)
-
-Steps **01** (frames) and **02** (COLMAP) run fully on an M5/M-series Mac. **03** (`splatfacto`) uses **gsplat’s CUDA rasteriser**, which is not built on macOS without an NVIDIA GPU — so Gaussian training must run on a **CUDA Linux/Windows machine** (or cloud GPU), not on MPS alone.
-
-After `uv sync`, apply the nerfstudio MPS init fix (safe on all platforms):
-
-```bash
-uv run --no-sync python patch_nerfstudio_mps.py
-```
-
-Typical workflow on a Mac:
-
-1. Run `01_extract_frames.py` and `02_run_colmap.py` (or `pipeline.py` up to COLMAP).
-2. Copy `nerfstudio_data/` to a CUDA host.
-3. There: `./scripts/setup_cloud.sh` then train (see below).
-4. Copy `outputs/` back and run `05_export.py` with the checkpoint path below.
-
-`03_train_gaussian.py` exits early on MPS/CPU when gsplat CUDA is missing, with this message, instead of failing mid-run.
 
 ### Cloud GPU (vast.ai, etc.)
 
@@ -205,9 +166,8 @@ Add one extracted frame and one spiral render to `export/examples/` after your f
 
 ## Hardware notes
 
-- Device selection is centralised in `device.py` (`cuda` → `mps` → `cpu`).
-- `pipeline.py` sets `PYTORCH_ENABLE_MPS_FALLBACK=1` before any PyTorch import so unsupported MPS ops fall back to CPU.
-- **splatfacto / gsplat:** training needs CUDA; MPS is used for COLMAP and data prep only on Mac.
+- Device selection is centralised in `device.py` (`cuda` → `cpu`).
+- **splatfacto / gsplat:** training requires CUDA.
 - Do not hardcode device strings elsewhere in the codebase.
 
 ## Project layout
@@ -225,6 +185,5 @@ scripts/            # setup_cloud.sh, ensure_env.py
 docs/               # CLOUD_GPU.md, MUSHROOM.md
 pipeline.py         # orchestration (uses uv run --no-sync)
 01_extract_frames.py … 05_export.py
-patch_nerfstudio_mps.py
 DESIGN.md           # design rationale
 ```

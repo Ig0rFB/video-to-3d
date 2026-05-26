@@ -15,8 +15,7 @@ This script:
 
 1. Installs **ffmpeg** and **COLMAP** (`apt-get` when available).
 2. Runs `uv sync --prerelease=allow` (torch **2.5.1+cu124** on Linux per `pyproject.toml`).
-3. Applies `patch_nerfstudio_mps.py`.
-4. Runs `scripts/ensure_env.py --fix-cuda --require-cuda`.
+3. Runs `scripts/ensure_env.py --fix-cuda --require-cuda`.
 
 ## Run training
 

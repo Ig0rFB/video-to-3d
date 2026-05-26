@@ -14,7 +14,6 @@ from env_utils import (
     resolve_cli,
 )
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
-from patch_nerfstudio_mps import patch_splatfacto
 
 # Path relative to --output-dir for ns-process-data when reusing an existing COLMAP model
 NS_COLMAP_REL = Path("colmap/sparse/0")
@@ -40,40 +39,28 @@ def train(
     ns_data_dir: str = "nerfstudio_data",
 ) -> None:
     device = get_device()
-    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
-    patch_splatfacto()
-
-    if device == "cuda":
-        cuda_issues = check_cuda_torch(strict=sys.platform.startswith("linux"))
-        if cuda_issues:
-            raise SystemExit(
-                "\n[splatfacto] CUDA PyTorch is not usable on this host:\n"
-                + "\n".join(f"  - {m}" for m in cuda_issues)
-                + "\n\n"
-                + cuda_torch_install_hint()
-                + "\n"
-            )
-
-    if device in ("mps", "cpu") and not gsplat_cuda_available():
-        if device == "cpu" and not torch.cuda.is_available():
-            raise SystemExit(
-                "\n[splatfacto] PyTorch cannot see a CUDA GPU on this machine.\n\n"
-                "On Linux cloud GPUs, run once:\n"
-                "  ./scripts/setup_cloud.sh\n"
-                "Or:\n"
-                "  uv run --no-sync python scripts/ensure_env.py --fix-cuda --require-cuda\n\n"
-                "Then verify:\n"
-                "  nvidia-smi\n"
-                "  uv run --no-sync python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"\n"
-            )
+    if device != "cuda":
         raise SystemExit(
-            "\n[splatfacto] gsplat's CUDA rasteriser is not available on this machine "
-            "(expected on Apple Silicon without an NVIDIA GPU).\n\n"
-            "COLMAP and ns-process-data can still run here. For Gaussian training, use a "
-            "Linux host with CUDA, or copy `nerfstudio_data/` to such a machine and run:\n"
-            "  uv run --no-sync python 03_train_gaussian.py\n"
-            "  (on the CUDA host, `get_device()` will select cuda automatically.)\n\n"
-            "See README.md → Apple Silicon.\n"
+            "\n[splatfacto] This project is configured to run on CUDA-enabled machines only.\n\n"
+            "Make sure your environment can see an NVIDIA GPU:\n"
+            "  nvidia-smi\n"
+            "  uv run --no-sync python -c \"import torch; print(torch.cuda.is_available(), torch.version.cuda)\"\n"
+        )
+
+    cuda_issues = check_cuda_torch(strict=True)
+    if cuda_issues:
+        raise SystemExit(
+            "\n[splatfacto] CUDA PyTorch is not usable on this host:\n"
+            + "\n".join(f"  - {m}" for m in cuda_issues)
+            + "\n\n"
+            + cuda_torch_install_hint()
+            + "\n"
+        )
+
+    if not gsplat_cuda_available():
+        raise SystemExit(
+            "\n[splatfacto] gsplat's CUDA rasteriser is not available on this machine.\n\n"
+            "Fix by reinstalling gsplat in this environment, and ensure you are on a CUDA host.\n"
         )
 
     ns_path = Path(ns_data_dir)
@@ -99,8 +86,7 @@ def train(
 
     subprocess.run(
         [
-            sys.executable,
-            str(Path(__file__).resolve().parent / "run_ns_train.py"),
+            resolve_cli("ns-train"),
             "splatfacto",
             "--data",
             ns_data_dir,
@@ -111,7 +97,7 @@ def train(
             "--pipeline.model.cull-alpha-thresh",
             "0.005",
             "--machine.device-type",
-            device,
+            "cuda",
         ],
         check=True,
     )

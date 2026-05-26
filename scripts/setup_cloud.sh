@@ -17,9 +17,6 @@ fi
 echo "==> Python environment (uv sync — torch cu124 pinned in pyproject.toml)"
 uv sync --prerelease=allow
 
-echo "==> nerfstudio MPS patch (harmless on CUDA)"
-uv run --no-sync python patch_nerfstudio_mps.py
-
 echo "==> Verify / repair CUDA PyTorch in .venv"
 uv run --no-sync python scripts/ensure_env.py --fix-cuda --require-cuda
 

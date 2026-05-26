@@ -33,7 +33,6 @@ def require_colmap_binary() -> None:
     if shutil.which("colmap") is None:
         raise SystemExit(
             "COLMAP is not on PATH (required by ns-process-data even with --skip-colmap).\n\n"
-            "  macOS:  brew install colmap\n"
             "  Linux:  sudo apt-get update && sudo apt-get install -y colmap\n"
             "See https://colmap.github.io/install.html"
         )
@@ -43,7 +42,6 @@ def require_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
         raise SystemExit(
             "ffmpeg is not on PATH.\n\n"
-            "  macOS:  brew install ffmpeg\n"
             "  Linux:  sudo apt-get install -y ffmpeg"
         )
 

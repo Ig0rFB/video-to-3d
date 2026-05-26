@@ -14,13 +14,11 @@ def gsplat_cuda_available() -> bool:
 
 def get_device() -> str:
     """
-    Returns the best available device string: 'cuda', 'mps', or 'cpu'.
-    All pipeline scripts import this function — never hardcode device elsewhere.
+    Returns the device string: 'cuda' or 'cpu'.
+    This project is intended to run on CUDA-enabled machines.
     """
     if torch.cuda.is_available():
         device = "cuda"
-    elif torch.backends.mps.is_available():
-        device = "mps"
     else:
         device = "cpu"
     print(f"[device] Using: {device}")

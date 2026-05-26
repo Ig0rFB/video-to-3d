@@ -112,7 +112,7 @@ def main() -> None:
         resolve_cli("ns-train")
         print("[ensure_env] ns-train: ok")
     except SystemExit:
-        print("[ensure_env] ns-train: not found (training uses run_ns_train.py)")
+        print("[ensure_env] ns-train: not found")
 
     import torch
 

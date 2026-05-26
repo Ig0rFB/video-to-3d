@@ -1,10 +1,6 @@
 import argparse
-import os
 import subprocess
 import sys
-
-# Must be set before any torch imports — no-op on CUDA/CPU, enables MPS op fallback
-os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
 from mushroom_paths import add_mushroom_arguments, resolve_mushroom_paths
 
