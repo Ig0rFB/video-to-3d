@@ -31,7 +31,7 @@ Trade-off: less smooth in unseen regions than implicit NeRF volumes.
 
 ## 4. Semantic lifting (optional)
 
-Grounding DINO + SAM2 → 2D masks → majority vote on projected Gaussian centres. Does not change trained geometry. See `04_semantic_lift.py` and README optional section.
+`04_semantic_lift.py` runs Grounding DINO + SAM2 per frame and writes 2D overlay PNGs/video. It validates `--checkpoint-dir` against the trained splatfacto run via `checkpoint_paths.py`; per-Gaussian 3D labelling is planned but not implemented. Helpers: `_load_grounding_dino`, `_load_sam2_predictor`, `_process_frame`, `_write_overlay_video`.
 
 ## 5. Hardware and environment
 

@@ -166,12 +166,12 @@ curl -L -o checkpoints/sam2.1_hiera_large.pt \
   https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
 
 uv run --no-sync python 04_semantic_lift.py \
-  --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp> \
-  --frames_dir <frames-or-images-dir> \
-  --output_dir semantic/
+  --checkpoint-dir latest \
+  --frames-dir <frames-or-images-dir> \
+  --output-dir semantic/
 ```
 
-This writes per-frame overlays to `semantic/overlays/` and a video to `semantic/overlay.mp4`.
+`--checkpoint-dir` validates the splatfacto run (`latest` or an explicit path under `outputs/splatfacto/`). Output is **2D overlays only** — per-Gaussian 3D labels are not implemented yet. Writes PNGs to `semantic/overlays/` and `semantic/overlay.mp4`.
 
 ## Example
 
@@ -192,8 +192,6 @@ colmap_workspace/   # COLMAP sparse model
 nerfstudio_data/    # ns-process-data output
 outputs/            # training checkpoints
 export/             # PLY + renders
-colmap_paths.py     # locate COLMAP sparse models
-checkpoint_paths.py # resolve splatfacto checkpoints (latest or explicit)
 device.py           # shared device utility
 env_utils.py        # COLMAP / CLI / CUDA preflight helpers
 scripts/            # setup_cloud.sh, ensure_env.py
