@@ -12,11 +12,13 @@ Reconstruct a geometrically coherent 3D indoor scene from a short phone-captured
 
 Hardware: **CUDA-enabled NVIDIA GPU**. This project is configured to run on CUDA only.
 
-| Guide | Contents |
-|-------|----------|
+
+| Guide                                  | Contents                                                |
+| -------------------------------------- | ------------------------------------------------------- |
 | [docs/CLOUD_GPU.md](docs/CLOUD_GPU.md) | vast.ai / Linux CUDA one-shot setup and troubleshooting |
-| [docs/MUSHROOM.md](docs/MUSHROOM.md) | MuSHRoom download, Zenodo archives, train commands |
-| [DESIGN.md](DESIGN.md) | Stack choices, hardware strategy, future work |
+| [docs/MUSHROOM.md](docs/MUSHROOM.md)   | MuSHRoom download, Zenodo archives, train commands      |
+| [DESIGN.md](DESIGN.md)                 | Stack choices, hardware strategy, future work           |
+
 
 ## Installation
 
@@ -38,7 +40,7 @@ colmap help
 ffmpeg -version
 ```
 
-> **PyTorch:** Linux CUDA hosts use **torch 2.5.1 + cu124** from `pyproject.toml` (not the latest PyPI CUDA 13 wheel). After `uv sync`, run pipeline commands with **`uv run --no-sync`** so uv does not re-resolve torch. Plain `uv run` without `--no-sync` may still change wheels if you edit dependencies.
+> **PyTorch:** Linux CUDA hosts use **torch 2.5.1 + cu124** from `pyproject.toml` (not the latest PyPI CUDA 13 wheel). After `uv sync`, run pipeline commands with `**uv run --no-sync`** so uv does not re-resolve torch. Plain `uv run` without `--no-sync` may still change wheels if you edit dependencies.
 
 ## Usage
 
@@ -86,10 +88,12 @@ One script downloads **COLMAP poses and RGB images** for all iPhone rooms (skips
 uv run --no-sync python input/download_mushroom.py
 ```
 
-| Phase | Zenodo | Size |
-|-------|--------|------|
-| COLMAP `sparse/` (all 10 rooms) | [13986996](https://zenodo.org/records/13986996) | ~379 MB |
-| RGB `images/` per room | [10230733](https://zenodo.org/records/10230733) (`<room>_iphone.tar.gz`) | ~150–400 MB each |
+
+| Phase                           | Zenodo                                                                   | Size             |
+| ------------------------------- | ------------------------------------------------------------------------ | ---------------- |
+| COLMAP `sparse/` (all 10 rooms) | [13986996](https://zenodo.org/records/13986996)                          | ~379 MB          |
+| RGB `images/` per room          | [10230733](https://zenodo.org/records/10230733) (`<room>_iphone.tar.gz`) | ~150–400 MB each |
+
 
 Do not use the larger `*_iphone_our.tar.gz` files on [10151161](https://zenodo.org/records/10151161) for training — those archives contain SDF derivatives only, not `images/`.
 
@@ -138,11 +142,13 @@ uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_data
 
 After a successful run, check `export/`:
 
-| File | Description |
-|------|-------------|
+
+| File                     | Description                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `export/point_cloud.ply` | Gaussian splat point cloud — open in [MeshLab](https://www.meshlab.net/) or [CloudCompare](https://www.cloudcompare.org/) |
-| `export/render.mp4` | Novel-view video (camera path interpolated from training poses) |
-| `export/examples/` | Example input frame and output render for documentation |
+| `export/render.mp4`      | Novel-view video (camera path interpolated from training poses)                                                           |
+| `export/examples/`       | Example input frame and output render for documentation                                                                   |
+
 
 Intermediate artefacts (`frames/`, `colmap_workspace/`, `nerfstudio_data/`, `outputs/`) are gitignored.
 
@@ -187,3 +193,4 @@ pipeline.py         # orchestration (uses uv run --no-sync)
 01_extract_frames.py … 05_export.py
 DESIGN.md           # design rationale
 ```
+
