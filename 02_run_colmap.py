@@ -1,6 +1,7 @@
 import argparse
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pycolmap
 
@@ -8,6 +9,74 @@ import pycolmap
 MAX_IMAGE_SIZE = 1920
 # Warn if fewer than this fraction of frames register in the sparse model
 MIN_REGISTERED_FRACTION = 0.3
+
+# pycolmap incremental_mapping returns model_id -> Reconstruction
+ColmapModels = dict[int, Any]
+
+
+def _select_best_model(maps: ColmapModels) -> tuple[Any | None, int]:
+    """Log each reconstructed model and return the one with the most registered images."""
+    best_registered = 0
+    best_model = None
+    for model_id, model in maps.items():
+        print(f"  Model {model_id}: {model.summary()}")
+        registered = model.num_reg_images()
+        if registered > best_registered:
+            best_registered = registered
+            best_model = model
+    return best_model, best_registered
+
+
+def _export_best_model_to_sparse_zero(
+    sparse_path: Path,
+    best_model: Any,
+    best_registered: int,
+    num_models: int,
+) -> None:
+    """
+    nerfstudio expects colmap_workspace/sparse/0.
+
+    Multiple models: clear sparse/ and write only the largest to sparse/0.
+    Single model: rename sparse/1 (etc.) to sparse/0 when needed.
+    """
+    if num_models > 1:
+        for sub in sparse_path.iterdir():
+            if sub.is_dir():
+                shutil.rmtree(sub)
+        export_dir = sparse_path / "0"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        best_model.write(str(export_dir))
+        print(f"Exported largest model ({best_registered} images) to sparse/0")
+        return
+
+    only_dir = next(sparse_path.iterdir(), None)
+    if only_dir is not None and only_dir.name != "0":
+        target = sparse_path / "0"
+        if target.exists():
+            shutil.rmtree(target)
+        only_dir.rename(target)
+
+
+def _assert_registration_quality(
+    maps: ColmapModels,
+    best_registered: int,
+    num_images: int,
+) -> None:
+    if len(maps) == 0:
+        raise RuntimeError(
+            "COLMAP produced 0 models. Increase fps in step 01 and retry. "
+            "If it still fails, trigger the DUSt3R fallback."
+        )
+
+    print(f"Registered {best_registered} / {num_images} extracted frames in the largest model.")
+    if best_registered < num_images * MIN_REGISTERED_FRACTION:
+        raise RuntimeError(
+            f"COLMAP registered only {best_registered}/{num_images} frames "
+            f"(<{MIN_REGISTERED_FRACTION:.0%}). Try:\n"
+            "  - Re-run after deleting colmap_workspace/ and frames/ (02 now uses a single shared camera)\n"
+            "  - Higher overlap: slower walk, --fps 3 or 4 in step 01\n"
+            "  - More texture/lighting in the scene"
+        )
 
 
 def run_colmap(image_dir: str, output_dir: str) -> None:
@@ -59,47 +128,14 @@ def run_colmap(image_dir: str, output_dir: str) -> None:
     )
 
     print(f"COLMAP complete. Reconstructed {len(maps)} model(s).")
-    best_registered = 0
-    best_model = None
-    for i, model in maps.items():
-        print(f"  Model {i}: {model.summary()}")
-        if model.num_reg_images() > best_registered:
-            best_registered = model.num_reg_images()
-            best_model = model
+    best_model, best_registered = _select_best_model(maps)
 
-    # nerfstudio expects colmap_workspace/sparse/0 — keep the largest model only
-    if best_model is not None and len(maps) > 1:
-        for sub in sparse_path.iterdir():
-            if sub.is_dir():
-                shutil.rmtree(sub)
-        export_dir = sparse_path / "0"
-        export_dir.mkdir(parents=True, exist_ok=True)
-        best_model.write(str(export_dir))
-        print(f"Exported largest model ({best_registered} images) to sparse/0")
-    elif best_model is not None and len(maps) == 1:
-        # Renumber to 0 if COLMAP wrote only sparse/1 etc.
-        only_dir = next(sparse_path.iterdir(), None)
-        if only_dir is not None and only_dir.name != "0":
-            target = sparse_path / "0"
-            if target.exists():
-                shutil.rmtree(target)
-            only_dir.rename(target)
-
-    if len(maps) == 0:
-        raise RuntimeError(
-            "COLMAP produced 0 models. Increase fps in step 01 and retry. "
-            "If it still fails, trigger the DUSt3R fallback."
+    if best_model is not None:
+        _export_best_model_to_sparse_zero(
+            sparse_path, best_model, best_registered, len(maps)
         )
 
-    print(f"Registered {best_registered} / {num_images} extracted frames in the largest model.")
-    if best_registered < num_images * MIN_REGISTERED_FRACTION:
-        raise RuntimeError(
-            f"COLMAP registered only {best_registered}/{num_images} frames "
-            f"(<{MIN_REGISTERED_FRACTION:.0%}). Try:\n"
-            "  - Re-run after deleting colmap_workspace/ and frames/ (02 now uses a single shared camera)\n"
-            "  - Higher overlap: slower walk, --fps 3 or 4 in step 01\n"
-            "  - More texture/lighting in the scene"
-        )
+    _assert_registration_quality(maps, best_registered, num_images)
 
 
 if __name__ == "__main__":

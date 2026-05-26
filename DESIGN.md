@@ -26,7 +26,7 @@ Trade-off: less smooth in unseen regions than implicit NeRF volumes.
 ## 3. Why COLMAP over DUSt3R / MASt3R
 
 - COLMAP is the default for **textured indoor** phone video and for MuSHRoom baselines.
-- `02_run_colmap.py` uses **SINGLE** camera mode, exhaustive matching for small sets, and keeps the largest registered model.
+- `02_run_colmap.py` uses **SINGLE** camera mode, exhaustive matching for small sets, then picks the largest reconstruction and normalises it to `sparse/0` (`_select_best_model`, `_export_best_model_to_sparse_zero`).
 - DUSt3R remains a documented fallback if registration falls below ~30% of frames.
 
 ## 4. Semantic lifting (optional)
@@ -42,11 +42,7 @@ Grounding DINO + SAM2 → 2D masks → majority vote on projected Gaussian centr
 - **`scripts/setup_cloud.sh`** — one-shot cloud instance setup (apt deps, sync, patch, CUDA verify).
 - **`env_utils.py`** — COLMAP binary check, `.venv/bin` CLI resolution, CUDA preflight.
 
-## 6. COLMAP path resolution
-
-`colmap_paths.py` is the single place that decides whether a directory contains a valid COLMAP sparse model (`cameras.bin` / `cameras.txt`, etc.) and which of `sparse/0/0`, `sparse/0`, or `sparse/` to use. Training (`03_train_gaussian.py`), MuSHRoom helpers (`mushroom_paths.py`), and the downloader (`input/download_mushroom.py`) all call `find_colmap_model()` so nested Zenodo layouts and `colmap_workspace/` exports stay consistent.
-
-## 7. MuSHRoom data sources
+## 6. MuSHRoom data sources
 
 | Content | Zenodo | Notes |
 |---------|--------|--------|
@@ -54,17 +50,9 @@ Grounding DINO + SAM2 → 2D masks → majority vote on projected Gaussian centr
 | RGB `images/` per room | [10230733](https://zenodo.org/records/10230733) | `<room>_iphone.tar.gz` |
 | SDF only (no `images/`) | [10151161](https://zenodo.org/records/10151161) | Use `prepare_mushroom_images.py` only if you already have `*_iphone_our` |
 
-## 8. CLI conventions
+## 7. Future work
 
-Pipeline scripts use **hyphenated** long options (`--checkpoint-dir`, `--colmap-dir`). `argparse` maps these to snake_case attributes (`args.checkpoint_dir`). Use hyphens in shell commands and docs; use attribute names in Python.
-
-## 9. Checkpoint resolution
-
-`checkpoint_paths.py` finds trained splatfacto runs (directories containing `config.yml`). `ns-train` with `--output-dir outputs/` writes to `outputs/splatfacto/<timestamp>/`. `pipeline.py` and `05_export.py` default to `latest` so export runs after training without hand-copying paths.
-
-## 10. Future work
-
-- LangSplat / Feature 3D GS for language queries.
+- LangSplat / Feature 3DGS for language queries.
 - Mesh from Gaussian opacity field + marching cubes.
 - DUSt3R poses → 3DGS hybrid benchmark vs COLMAP on the same room.
 - Depth prior (e.g. Depth Anything v2) for sparse registrations.
