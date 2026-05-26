@@ -124,11 +124,17 @@ def lift_semantics(
         raise SystemExit(f"[semantic] Missing runtime deps: {exc}") from exc
 
     try:
+        from patch_groundingdino import patch_groundingdino_bertwarper
+
+        patch_groundingdino_bertwarper()
         from groundingdino.util.inference import load_model, predict  # type: ignore
     except Exception as exc:  # noqa: BLE001
         raise SystemExit(
-            "[semantic] groundingdino-py is not installed. Install it with:\n"
+            "[semantic] groundingdino-py is not installed (or patch failed). Install with:\n"
             "  uv add --prerelease=allow groundingdino-py\n"
+            "If you see BertModel/get_head_mask errors, also run:\n"
+            "  uv run --no-sync python patch_groundingdino.py\n"
+            "  uv pip install --python .venv/bin/python 'transformers>=4.35,<5'\n"
         ) from exc
 
     try:

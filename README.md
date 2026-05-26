@@ -159,6 +159,8 @@ After core export works:
 ```bash
 uv add --prerelease=allow groundingdino-py
 uv add "git+https://github.com/facebookresearch/sam2.git"
+uv pip install --python .venv/bin/python "transformers>=4.35,<5"
+uv run --no-sync python patch_groundingdino.py
 mkdir -p checkpoints
 curl -L -o checkpoints/sam2.1_hiera_large.pt \
   https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
