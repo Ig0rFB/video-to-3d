@@ -4,6 +4,7 @@ frames/
 colmap_workspace/
 nerfstudio_data/
 export/
+semantic/
 __pycache__/
 *.pyc
 .DS_Store

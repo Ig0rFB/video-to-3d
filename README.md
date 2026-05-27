@@ -9,16 +9,13 @@ Reconstruct a geometrically coherent 3D indoor scene from a short phone-captured
 - **ffmpeg** — frame extraction
 - **COLMAP** — camera poses and sparse reconstruction
 
-
 Hardware: **CUDA-enabled NVIDIA GPU**. This project is configured to run on CUDA only.
-
 
 | Guide                                  | Contents                                                |
 | -------------------------------------- | ------------------------------------------------------- |
 | [docs/CLOUD_GPU.md](docs/CLOUD_GPU.md) | vast.ai / Linux CUDA one-shot setup and troubleshooting |
 | [docs/MUSHROOM.md](docs/MUSHROOM.md)   | MuSHRoom download, Zenodo archives, train commands      |
 | [DESIGN.md](DESIGN.md)                 | Stack choices, hardware strategy, future work           |
-
 
 ## Installation
 
@@ -44,7 +41,9 @@ ffmpeg -version
 
 ## Usage
 
-1. Place your video at `input/video.mp4` (or pass a custom path to individual steps).
+### Run on your own video
+
+1. Put your video at `input/video.mp4`.
 2. Run the full pipeline:
 
 ```bash
@@ -54,10 +53,10 @@ uv run --no-sync python pipeline.py
 Or run stages manually:
 
 ```bash
-uv run --no-sync python 01_extract_frames.py --video input/room.mp4 --fps 2
+uv run --no-sync python 01_extract_frames.py --video input/video.mp4 --fps 2
 uv run --no-sync python 02_run_colmap.py
 uv run --no-sync python 03_train_gaussian.py
-uv run --no-sync python 05_export.py --checkpoint_dir outputs/nerfstudio_data/splatfacto/<timestamp>
+uv run --no-sync python 05_export.py --checkpoint-dir outputs/nerfstudio_data/splatfacto/<timestamp>
 ```
 
 Use the latest timestamped folder under `outputs/nerfstudio_data/splatfacto/` (not `outputs/splatfacto/latest-run`).
@@ -78,6 +77,17 @@ git clone https://github.com/Ig0rFB/video-to-3d.git && cd video-to-3d
 uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_datasets/coffee_room
 ```
 
+### Prepare example artefacts (git-tracked)
+
+After you have `export/render.mp4` and `semantic/overlay.mp4`, extract a matching set of PNG frames into
+`examples/frames/`:
+
+```bash
+uv run --no-sync python scripts/prepare_examples.py --time 1.0
+```
+
+See `examples/README.md` for details.
+
 ### MuSHRoom dataset (skip steps 01 and 02)
 
 See **[docs/MUSHROOM.md](docs/MUSHROOM.md)** for Zenodo IDs and layout.
@@ -88,12 +98,10 @@ One script downloads **COLMAP poses and RGB images** for all iPhone rooms (skips
 uv run --no-sync python input/download_mushroom.py
 ```
 
-
 | Phase                           | Zenodo                                                                   | Size             |
 | ------------------------------- | ------------------------------------------------------------------------ | ---------------- |
 | COLMAP `sparse/` (all 10 rooms) | [13986996](https://zenodo.org/records/13986996)                          | ~379 MB          |
 | RGB `images/` per room          | [10230733](https://zenodo.org/records/10230733) (`<room>_iphone.tar.gz`) | ~150–400 MB each |
-
 
 Do not use the larger `*_iphone_our.tar.gz` files on [10151161](https://zenodo.org/records/10151161) for training — those archives contain SDF derivatives only, not `images/`.
 
@@ -142,13 +150,10 @@ uv run --no-sync python 03_train_gaussian.py --mushroom input/MuSHRoom/room_data
 
 After a successful run, check `export/`:
 
-
 | File                     | Description                                                                                                               |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `export/point_cloud.ply` | Gaussian splat point cloud — open in [MeshLab](https://www.meshlab.net/) or [CloudCompare](https://www.cloudcompare.org/) |
 | `export/render.mp4`      | Novel-view video (camera path interpolated from training poses)                                                           |
-| `export/examples/`       | Example input frame and output render for documentation                                                                   |
-
 
 Intermediate artefacts (`frames/`, `colmap_workspace/`, `nerfstudio_data/`, `outputs/`) are gitignored.
 
@@ -175,7 +180,13 @@ uv run --no-sync python 04_semantic_lift.py \
 
 ## Example
 
-Add one extracted frame and one spiral render to `export/examples/` after your first successful run (these paths are gitignored with `export/` — copy or symlink for README screenshots as needed).
+To create a small set of easy-to-review example images, run:
+
+```bash
+uv run --no-sync python scripts/prepare_examples.py --time 1.0
+```
+
+This writes PNGs to `examples/frames/`. See `examples/README.md`.
 
 ## Hardware notes
 
@@ -185,7 +196,7 @@ Add one extracted frame and one spiral render to `export/examples/` after your f
 
 ## Project layout
 
-```
+```text
 input/              # raw .mp4
 frames/             # extracted JPEGs
 colmap_workspace/   # COLMAP sparse model
@@ -200,4 +211,3 @@ pipeline.py         # orchestration (uses uv run --no-sync)
 01_extract_frames.py … 05_export.py
 DESIGN.md           # design rationale
 ```
-
