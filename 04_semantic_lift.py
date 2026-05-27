@@ -141,6 +141,9 @@ def _load_grounding_dino(repo_root: Path) -> Any:
     return load_model(str(gdino_cfg), str(gdino_weights))
 
 
+SAM2_HIERA_L_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
+
+
 def _load_sam2_predictor(repo_root: Path) -> Any:
     try:
         from sam2.build_sam import build_sam2  # type: ignore
@@ -153,17 +156,15 @@ def _load_sam2_predictor(repo_root: Path) -> Any:
 
     import sam2  # type: ignore
 
+    # build_sam2 uses Hydra compose() — pass a config name on pkg://sam2, not a filesystem path.
     sam2_pkg = Path(sam2.__file__).resolve().parent
-    candidates = [
-        sam2_pkg / "configs" / "sam2.1" / "sam2.1_hiera_l.yaml",
-        sam2_pkg.parent / "configs" / "sam2.1" / "sam2.1_hiera_l.yaml",
-        repo_root / "configs" / "sam2.1" / "sam2.1_hiera_l.yaml",
-    ]
-    sam2_cfg = next((c for c in candidates if c.exists()), None)
-    if sam2_cfg is None:
+    cfg_on_disk = sam2_pkg / "configs" / "sam2.1" / "sam2.1_hiera_l.yaml"
+    if not cfg_on_disk.exists():
         raise SystemExit(
-            "[semantic] SAM2 config file not found. Expected one of:\n"
-            + "\n".join(f"  - {c}" for c in candidates)
+            "[semantic] SAM2 config missing from the installed package:\n"
+            f"  - {cfg_on_disk}\n"
+            "Reinstall SAM2 from the official repo:\n"
+            '  uv add "git+https://github.com/facebookresearch/sam2.git"\n'
         )
 
     sam2_ckpt = repo_root / "checkpoints" / "sam2.1_hiera_large.pt"
@@ -176,8 +177,8 @@ def _load_sam2_predictor(repo_root: Path) -> Any:
             "    https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt\n"
         )
 
-    print(f"[semantic] Loading SAM2: {sam2_cfg}")
-    sam2_model = build_sam2(str(sam2_cfg), str(sam2_ckpt), device="cuda")
+    print(f"[semantic] Loading SAM2: {SAM2_HIERA_L_CONFIG}")
+    sam2_model = build_sam2(SAM2_HIERA_L_CONFIG, str(sam2_ckpt), device="cuda")
     return SAM2ImagePredictor(sam2_model)
 
 
