@@ -8,7 +8,7 @@ Reconstruct a geometrically coherent 3D indoor scene from a short phone-captured
 - **[uv](https://docs.astral.sh/uv/)** — package and environment management
 - **ffmpeg** — frame extraction
 - **COLMAP** — camera poses and sparse reconstruction
-- **Linux:** `sudo apt-get install -y ffmpeg colmap`
+
 
 Hardware: **CUDA-enabled NVIDIA GPU**. This project is configured to run on CUDA only.
 
