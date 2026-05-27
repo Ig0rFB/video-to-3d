@@ -11,6 +11,7 @@ Per-Gaussian 3D labels are not implemented yet — output is 2D overlay PNGs/vid
 from __future__ import annotations
 
 import argparse
+import inspect
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -67,24 +68,32 @@ def _iter_frames(frames_dir: Path, *, stride: int, max_frames: int | None) -> li
     return files
 
 
-def _boxes_cxcywh_to_xyxy_px(boxes: Any, w: int, h: int) -> Any:
-    import numpy as np
+def _prepare_grounding_dino_image(rgb: Any) -> Any:
+    """Resize + ImageNet normalise — required by GroundingDINO predict()."""
+    from PIL import Image
 
-    b = boxes.detach().cpu().numpy() if hasattr(boxes, "detach") else boxes
-    b = b.astype("float32")
-    b[:, 0] *= w
-    b[:, 2] *= w
-    b[:, 1] *= h
-    b[:, 3] *= h
-    cx, cy, bw, bh = b[:, 0], b[:, 1], b[:, 2], b[:, 3]
-    x0 = cx - bw / 2
-    y0 = cy - bh / 2
-    x1 = cx + bw / 2
-    y1 = cy + bh / 2
-    xyxy = np.stack([x0, y0, x1, y1], axis=1)
-    xyxy[:, 0::2] = np.clip(xyxy[:, 0::2], 0, w - 1)
-    xyxy[:, 1::2] = np.clip(xyxy[:, 1::2], 0, h - 1)
-    return xyxy
+    import groundingdino.datasets.transforms as T  # type: ignore
+
+    transform = T.Compose(
+        [
+            T.RandomResize([800], max_size=1333),
+            T.ToTensor(),
+            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ]
+    )
+    image_pil = Image.fromarray(rgb)
+    image_transformed, _ = transform(image_pil, None)
+    return image_transformed
+
+
+def _boxes_cxcywh_to_xyxy_px(boxes: Any, w: int, h: int) -> Any:
+    """Map normalised cxcywh boxes to pixel xyxy (same as groundingdino annotate())."""
+    from torchvision.ops import box_convert
+
+    scale = boxes.new_tensor([w, h, w, h])
+    boxes_scaled = boxes * scale
+    xyxy = box_convert(boxes=boxes_scaled, in_fmt="cxcywh", out_fmt="xyxy")
+    return xyxy.detach().cpu().numpy()
 
 
 def _match_class(phrase: str, classes: list[str]) -> str | None:
@@ -195,38 +204,58 @@ def _process_frame(
     cv2: Any,
     np: Any,
     torch: Any,
-) -> None:
+) -> tuple[int, int]:
+    """Returns (detection_count, labelled_count) for progress stats."""
     from groundingdino.util.inference import predict  # type: ignore
 
     bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
     if bgr is None:
-        return
+        return 0, 0
     h, w = bgr.shape[:2]
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
     out_path = out_overlays / f"{path.stem}_overlay.png"
 
-    image_t = torch.from_numpy(rgb).permute(2, 0, 1).float() / 255.0
-    boxes, _logits, phrases = predict(
-        model=dino,
-        image=image_t,
-        caption=caption,
-        box_threshold=box_threshold,
-        text_threshold=text_threshold,
-        device="cuda",
-    )
+    image_t = _prepare_grounding_dino_image(rgb)
+    predict_kwargs: dict[str, Any] = {
+        "model": dino,
+        "image": image_t,
+        "caption": caption,
+        "box_threshold": box_threshold,
+        "text_threshold": text_threshold,
+        "device": "cuda",
+    }
+    if "remove_combined" in inspect.signature(predict).parameters:
+        predict_kwargs["remove_combined"] = True
+    boxes, _logits, phrases = predict(**predict_kwargs)
+    phrases = [p.strip() for p in phrases if p.strip()]
     if len(phrases) == 0:
         cv2.imwrite(str(out_path), bgr)
-        return
+        return 0, 0
 
     xyxy = _boxes_cxcywh_to_xyxy_px(boxes, w=w, h=h)
     sam2_pred.set_image(rgb)
     overlay = bgr.copy()
+    labelled = 0
 
     for j, phrase in enumerate(phrases):
         cls = _match_class(phrase, TARGET_CLASSES)
+        label = cls if cls is not None else phrase
+        colour = _class_colour(cls) if cls is not None else (180, 180, 180)
+        x0, y0, x1, y1 = xyxy[j]
+        x0i, y0i, x1i, y1i = int(x0), int(y0), int(x1), int(y1)
+        cv2.rectangle(overlay, (x0i, y0i), (x1i, y1i), colour, 2)
+        cv2.putText(
+            overlay,
+            label,
+            (x0i, max(0, y0i - 6)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            colour,
+            2,
+            cv2.LINE_AA,
+        )
         if cls is None:
             continue
-        x0, y0, x1, y1 = xyxy[j]
         box = np.array([x0, y0, x1, y1], dtype=np.float32)
         masks, _ious, _ = sam2_pred.predict(
             box=box,
@@ -235,26 +264,17 @@ def _process_frame(
             normalize_coords=True,
         )
         if masks is None or len(masks) == 0:
+            labelled += 1
             continue
         mask = masks[0].astype(bool)
-        colour = _class_colour(cls)
         overlay[mask] = (
             overlay[mask].astype(np.float32) * (1.0 - overlay_alpha)
             + np.array(colour, dtype=np.float32) * overlay_alpha
         ).astype(np.uint8)
-        cv2.rectangle(overlay, (int(x0), int(y0)), (int(x1), int(y1)), colour, 2)
-        cv2.putText(
-            overlay,
-            cls,
-            (int(x0), max(0, int(y0) - 6)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            colour,
-            2,
-            cv2.LINE_AA,
-        )
+        labelled += 1
 
     cv2.imwrite(str(out_path), overlay)
+    return len(phrases), labelled
 
 
 def _write_overlay_video(out_root: Path, out_overlays: Path) -> None:
@@ -292,8 +312,8 @@ def lift_semantics(
     *,
     stride: int = 1,
     max_frames: int | None = None,
-    box_threshold: float = 0.35,
-    text_threshold: float = 0.25,
+    box_threshold: float = 0.28,
+    text_threshold: float = 0.22,
     overlay_alpha: float = 0.45,
     write_video: bool = True,
 ) -> None:
@@ -329,10 +349,12 @@ def lift_semantics(
     caption = " . ".join(TARGET_CLASSES) + " ."
     print(f"[semantic] Frames: {len(files)}  stride={stride}  output={out_overlays}")
 
+    total_detections = 0
+    total_labelled = 0
     ctx = torch.autocast("cuda", dtype=torch.bfloat16)
     with torch.inference_mode(), ctx:
         for idx, path in enumerate(files):
-            _process_frame(
+            n_det, n_lbl = _process_frame(
                 path,
                 out_overlays,
                 dino=dino,
@@ -345,8 +367,20 @@ def lift_semantics(
                 np=np,
                 torch=torch,
             )
+            total_detections += n_det
+            total_labelled += n_lbl
             if (idx + 1) % 25 == 0:
                 print(f"[semantic] {idx + 1}/{len(files)}")
+
+    print(
+        f"[semantic] Done: {len(files)} frames, "
+        f"{total_detections} detections, {total_labelled} with target-class masks"
+    )
+    if total_detections == 0:
+        print(
+            "[semantic] No detections — try lower thresholds, e.g. "
+            "--box-threshold 0.25 --text-threshold 0.2"
+        )
 
     if write_video:
         _write_overlay_video(out_root, out_overlays)
@@ -371,8 +405,8 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", default="semantic/")
     parser.add_argument("--stride", type=int, default=1)
     parser.add_argument("--max-frames", type=int, default=None)
-    parser.add_argument("--box-threshold", type=float, default=0.35)
-    parser.add_argument("--text-threshold", type=float, default=0.25)
+    parser.add_argument("--box-threshold", type=float, default=0.28)
+    parser.add_argument("--text-threshold", type=float, default=0.22)
     parser.add_argument("--overlay-alpha", type=float, default=0.45)
     parser.add_argument("--no-video", action="store_true")
     args = parser.parse_args()
