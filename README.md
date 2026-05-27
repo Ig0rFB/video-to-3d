@@ -83,7 +83,7 @@ After you have `export/render.mp4` and `semantic/overlay.mp4`, extract a matchin
 `examples/frames/`:
 
 ```bash
-uv run --no-sync python scripts/prepare_examples.py --time 1.0
+uv run --no-sync python scripts/prepare_examples.py --progress 0.5
 ```
 
 See `examples/README.md` for details.
@@ -183,7 +183,7 @@ uv run --no-sync python 04_semantic_lift.py \
 To create a small set of easy-to-review example images, run:
 
 ```bash
-uv run --no-sync python scripts/prepare_examples.py --time 1.0
+uv run --no-sync python scripts/prepare_examples.py --progress 0.5
 ```
 
 This writes PNGs to `examples/frames/`. See `examples/README.md`.

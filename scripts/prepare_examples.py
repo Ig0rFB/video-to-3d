@@ -26,6 +26,32 @@ from pathlib import Path
 def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
+def _probe_duration_seconds(video: Path) -> float:
+    """
+    Return video duration in seconds via ffprobe.
+
+    We use this to avoid extracting beyond EOF, which can result in missing frames.
+    """
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nk=1:nw=1",
+            str(video),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    s = result.stdout.strip()
+    return float(s) if s else 0.0
+
 
 def _extract_frame(video: Path, out_png: Path, *, time_s: float) -> None:
     out_png.parent.mkdir(parents=True, exist_ok=True)
@@ -51,6 +77,16 @@ def _extract_frame(video: Path, out_png: Path, *, time_s: float) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extract matching example frames from export + semantic videos."
+    )
+    parser.add_argument(
+        "--progress",
+        type=float,
+        default=None,
+        help=(
+            "Extract by normalised progress (0..1) within each video. "
+            "This is often the easiest way to align short export/overlay videos "
+            "with a long input video."
+        ),
     )
     parser.add_argument(
         "--time",
@@ -101,13 +137,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.frame is not None:
-        if args.fps is None or args.fps <= 0:
-            raise SystemExit("--frame requires a positive --fps.")
-        time_s = args.frame / args.fps
-    else:
-        time_s = args.time
-
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -122,17 +151,54 @@ def main() -> None:
     if not args.skip_input and not input_video.exists():
         raise SystemExit(f"Missing input video: {input_video} (or pass --skip-input)")
 
+    durations = {
+        "input": _probe_duration_seconds(input_video) if not args.skip_input else 0.0,
+        "render": _probe_duration_seconds(render_video),
+        "overlay": _probe_duration_seconds(overlay_video),
+    }
+
+    if args.progress is not None:
+        if not (0.0 <= args.progress <= 1.0):
+            raise SystemExit("--progress must be between 0 and 1.")
+        times = {
+            k: (v * args.progress if v > 0 else 0.0) for k, v in durations.items()
+        }
+        selection = f"progress={args.progress:.3f}"
+    else:
+        if args.frame is not None:
+            if args.fps is None or args.fps <= 0:
+                raise SystemExit("--frame requires a positive --fps.")
+            base_time = args.frame / args.fps
+            selection = f"frame={args.frame} @ fps={args.fps}"
+        else:
+            base_time = args.time
+            selection = f"time_s={base_time:.3f}"
+
+        # Clamp extraction time per video to stay within bounds.
+        times = {}
+        for k, dur in durations.items():
+            if dur <= 0:
+                times[k] = base_time
+            else:
+                times[k] = min(base_time, max(0.0, dur - 1e-3))
+
     if not args.skip_input:
-        _extract_frame(input_video, out_dir / "input_frame.png", time_s=time_s)
-    _extract_frame(render_video, out_dir / "render_frame.png", time_s=time_s)
-    _extract_frame(overlay_video, out_dir / "semantic_overlay_frame.png", time_s=time_s)
+        _extract_frame(input_video, out_dir / "input_frame.png", time_s=times["input"])
+    _extract_frame(render_video, out_dir / "render_frame.png", time_s=times["render"])
+    _extract_frame(
+        overlay_video,
+        out_dir / "semantic_overlay_frame.png",
+        time_s=times["overlay"],
+    )
 
     meta = out_dir / "README.txt"
     meta.write_text(
         "\n".join(
             [
                 "Extracted example frames",
-                f"- time_s: {time_s:.3f}",
+                f"- selection: {selection}",
+                f"- durations_s: input={durations['input']:.3f} render={durations['render']:.3f} overlay={durations['overlay']:.3f}",
+                f"- extract_s: input={times['input']:.3f} render={times['render']:.3f} overlay={times['overlay']:.3f}",
                 f"- input_video: {input_video}",
                 f"- render_video: {render_video}",
                 f"- overlay_video: {overlay_video}",

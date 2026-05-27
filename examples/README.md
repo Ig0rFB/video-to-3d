@@ -13,7 +13,7 @@ Run from the repository root *after* you have produced:
 - `semantic/overlay.mp4`
 
 ```bash
-uv run --no-sync python scripts/prepare_examples.py --time 1.0
+uv run --no-sync python scripts/prepare_examples.py --progress 0.5
 ```
 
 Outputs are written to `examples/frames/`:
